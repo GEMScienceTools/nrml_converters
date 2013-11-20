@@ -9,8 +9,11 @@ Current Functions
 Of November 2013 the repository contains functions for converting the following:
 
 1) Hazard Curves from Nrml to i) Csv, ii) Matlab Binary
+
 2) Hazard Maps from Nrml to i) Csv, ii) .xyz (for GMT format), iii) shapefile
+
 3) Uniform hazard spectra from Nrml to i) Csv, ii) Matlab Binary
+
 4) Ground motion field set from Nrml to i) Csv, ii) Matlab Binary
 
 
