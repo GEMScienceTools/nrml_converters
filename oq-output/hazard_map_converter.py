@@ -1,10 +1,10 @@
 #!/usr/bin/env/python
 # LICENSE
 #
-# Copyright (c) 2010-2013, GEM Foundation, G. Weatherill, M. Pagani,
+# Copyright (c) 2013, GEM Foundation, G. Weatherill, M. Pagani,
 # D. Monelli.
 #
-# The Hazard Modeller's Toolkit is free software: you can redistribute
+# The nrml_convertes is free software: you can redistribute
 # it and/or modify it under the terms of the GNU Affero General Public
 # License as published by the Free Software Foundation, either version
 # 3 of the License, or (at your option) any later version.
@@ -14,7 +14,7 @@
 #
 # DISCLAIMER
 # 
-# The software Hazard Modeller's Toolkit (hmtk) provided herein
+# The software nrml_convertes provided herein
 # is released as a prototype implementation on behalf of
 # scientists and engineers working within the GEM Foundation (Global
 # Earthquake Model).
@@ -34,7 +34,7 @@
 # directed to the hazard scientific staff of the GEM Model Facility
 # (hazard@globalquakemodel.org).
 #
-# The Hazard Modeller's Toolkit (hmtk) is therefore distributed WITHOUT
+# The nrml_convertes is therefore distributed WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 # FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 # for more details.
