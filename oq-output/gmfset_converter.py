@@ -43,7 +43,7 @@
 # liability for use of the software.
 
 '''
-Convert GMF NRML file to .csv or .mat files.
+Convert GMF NRML file to .csv files.
 '''
 
 import os
