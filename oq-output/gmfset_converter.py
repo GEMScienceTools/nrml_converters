@@ -43,174 +43,176 @@
 # liability for use of the software.
 
 '''
-Post-process hazard calculation data process a set of ground motion fields
-from xml format to other formats
+Convert GMF NRML file to .csv or .mat files.
 '''
 
 import os
 import csv
 import argparse
-import shapefile
-import numpy as np
+import numpy
 from lxml import etree
-from collections import OrderedDict
 from scipy.io import savemat
 
-xmlNRML='{http://openquake.org/xmlns/nrml/0.4}'
+NRML='{http://openquake.org/xmlns/nrml/0.4}'
 
 
-def parse_gmf_node(element):
+class GMF(object):
     """
-    Parse Hazard Map Node element.
+    GMF
     """
-    return float(element.attrib.get('lon')), float(element.attrib.get('lat')),\
-        float(element.attrib.get('gmv'))
+    def __init__(self, IMT, ruptureId, values, saDamping, saPeriod):
+        self.IMT = IMT
+        self.ruptureId = ruptureId
+        self.values = values
+        self.saDamping = saDamping
+        self.saPeriod = saPeriod
 
-class GMFSetParser(object):
+
+class GmfSet(object):
     """
-    Base class for converting ground motion field sets from xml
+    GMF Set.
     """
-    def __init__(self, input_file):
-        """
-        """
-        self.input_file = input_file
-        self.longitude = []
-        self.latitude = []
-        self.gmfset = OrderedDict()
+    def __init__(self, stochasticEventSetId, investigationTime, gmfs):
+        self.stochasticEventSetId = stochasticEventSetId
+        self.investigationTime = investigationTime
+        self.gmfs = gmfs
 
-    def read_gmfset_file(self):
-        """
-        Loads the input file into memory
-        """
-        parse_args = dict(source=self.input_file)
-        for _, element in etree.iterparse(**parse_args):
-            if element.tag == '%sgmf' % xmlNRML:
-                # Gets the event set
-                self.process_gmf_element(element)
-            else:
-                pass
 
-        for key in self.gmfset.keys():
-            self.gmfset[key] = np.array(self.gmfset[key])
-            self.gmfset[key] = self.gmfset[key].T
+class GmfCollection(object):
+    """
+    GMF collection.
+    """
+    def __init__(self, sm_tp, gsim_tp, gmfss):
+        self.sm_tp = sm_tp
+        self.gsim_tp = gsim_tp
+        self.gmfss = gmfss
 
-    def process_gmf_element(self, element):
-        """
-        Processes the element to get the ground motion field
-        """
-        imt = element.attrib.get("IMT")
-        if imt == "SA":
-            # Concatenate into a single key
-            imt_key = "SA" + "_" + element.attrib.get("saPeriod") + "_" +\
-                element.attrib.get("saDamping")
+
+def parse_gmfc_file(file_name):
+    """
+    Parse NRML 0.4 GMF collection file.
+    """
+    parse_args = dict(source=file_name)
+
+    for _, element in etree.iterparse(**parse_args):
+        if element.tag == '%sgmfCollection' % NRML:
+            gmfc = parse_gmfc_collection(element)
+            element.clear()
+
+    return gmfc
+
+def parse_gmfc_collection(element):
+    """
+    Parse NRML 0.4 GMF collection element.
+    """
+    sm_tp = element.attrib['sourceModelTreePath']
+    gsim_tp = element.attrib['gsimTreePath']
+
+    gmfss = []
+    for e in element.iterchildren():
+        gmfss.append(parse_gmf_set(e))
+        e.clear()
+
+    return GmfCollection(sm_tp, gsim_tp, gmfss)
+
+def parse_gmf_set(element):
+    """
+    Parse NRML 0.4 GMF set element.
+    """
+    stochasticEventSetId = element.attrib['stochasticEventSetId']
+    investigationTime = element.attrib['investigationTime']
+    print 'Processing gmf set %s' % stochasticEventSetId
+
+    gmfs = {}
+    for e in element.iterchildren():
+        gmf = parse_gmf(e)
+        IMT = gmf.IMT if gmf.IMT != 'SA' else '%s(%s)' % (gmf.IMT, gmf.saPeriod)
+
+        if IMT in gmfs.keys():
+            gmfs[IMT].append((gmf.ruptureId, gmf.values))
         else:
-            imt_key = imt
-        # Get the field 
-        lons = []
-        lats = []
-        gmvs = []
-        for gmf_element in element.getiterator():
-            if gmf_element.tag == ("%snode" % xmlNRML):
-                lons.append(float(gmf_element.attrib.get("lon")))
-                lats.append(float(gmf_element.attrib.get("lat")))
-                gmvs.append(float(gmf_element.attrib.get("gmv")))
-        if len(self.longitude) == 0:
-            self.longitude = np.array(lons)
-            self.latitude = np.array(lats)
+            gmfs[IMT] = [(gmf.ruptureId, gmf.values)]
 
-        if not imt_key in self.gmfset.keys():
-            # IMT is not in dictionary
-            self.gmfset[imt_key] = [gmvs]
-        else:
-            # IMT is in dictionary - so parse data
-            self.gmfset[imt_key].append(gmvs)
+        e.clear()
 
+    return GmfSet(stochasticEventSetId, investigationTime, gmfs)
 
-
-class GMFSetToCsv(GMFSetParser):
+def parse_gmf(element):
     """
-    Writes the GMFSet to a Csv File
+    Parse NRML 0.4 GMF element.
     """
-    def write_file(self, output_file):
-        """
-        Writes to the output file
-        """
-        fid = open(output_file, 'a+')
-        for key in self.gmfset.keys():
-            print >> fid, "Longitude, Latitude, %s" % key
-            
-            data = np.column_stack([self.longitude, 
-                                    self.latitude, 
-                                    self.gmfset[key]])
-            np.savetxt(fid, data, fmt='%.8e', delimiter=',')
-        fid.close()
+    ruptureId = element.attrib['ruptureId']
+    IMT = element.attrib['IMT']
+    saDamping = None
+    saPeriod = None
+    if IMT == 'SA':
+        saDamping = element.attrib['saDamping']
+        saPeriod = element.attrib['saPeriod']
 
+    print 'Processing gmf %s' % ruptureId
+    lons = []
+    lats = []
+    values = []
+    for e in element.iterchildren():
+        lons.append(float(e.attrib['lon']))
+        lats.append(float(e.attrib['lat']))
+        values.append(float(e.attrib['gmv']))
+        e.clear()
+    values = numpy.array([lons, lats, values]).T
 
+    return GMF(IMT, ruptureId, values, saDamping, saPeriod)
 
-class GMFSetToMultipleCsv(GMFSetParser):
+def save_gmfs_to_csv(gmf_collection, out_dir):
     """
-    Writes the GMFSet to a set of Muliple csv files
+    Save GMFs to .csv files
     """
-    def write_file(self, file_stem):
-        """
-        Writes to a set of files with a common stem. Each file is the stem
-        that is appended with the GMF ID
-        """
+    for gmf_set in gmf_collection.gmfss:
+        for imt in gmf_set.gmfs.keys():
+            dir_name = '%s/StochasticEventSet_%s_%s' % \
+                (out_dir, gmf_set.stochasticEventSetId, imt)
+            os.makedirs(dir_name)
 
-        for key in self.gmfset.keys():
-            filename = file_stem + "_" + key + ".csv"
-            data = np.column_stack([self.longitude, 
-                                    self.latitude, 
-                                    self.gmfset[key]])
-            fid = open(filename, 'wt')
-            print >> fid, "Longitude, Latitude, %s" % key
-            np.savetxt(fid, data, fmt="%.8e", delimiter=",")
-            fid.close()
-           
-class GMFSetToMatlabBinary(GMFSetParser):
-    """
-    Write the GMFSet to a Matlab Binary
-    """
-    def write_file(self, output_file):
-        """
-        """
-        mat_dict = {'longitude': self.longitude,
-                    'latitude': self.latitude}
-        for key in self.gmfset.keys():
-            mat_dict[key] = self.gmfset[key]
-        savemat(output_file, mat_dict, oned_as='column')
-
-
-FILE_MAP = {'csv': GMFSetToCsv,
-            'multi-csv': GMFSetToMultipleCsv,
-            'mat': GMFSetToMatlabBinary}
+            for rup_id, values in gmf_set.gmfs[imt]:
+                print 'saving file for rupture %s' % rup_id
+                header = 'smltp=%s, gsimltp=%s' % \
+                    (gmf_collection.sm_tp, gmf_collection.gsim_tp)
+                header += '\nIMT=%s' % imt
+                fname = '%s/%s.csv' % (dir_name, rup_id)
+                numpy.savetxt(fname, values, header=header, fmt='%5.2f,%5.2f,%g')
 
 def set_up_arg_parser():
     """
     Can run as executable. To do so, set up the command line parser
     """
     parser = argparse.ArgumentParser(
-        description='Convert GMF Set file from Nrml to Something Readable'
-            'To run just type: python gmfset_converter.py ' 
-            '--input-file=/PATH/INPUT_FILE_NAME '
-            '--output-file=/PATH/OUTPUT_FILE_NAME.xml'
-            '--file-type=csv | multi-csv | mat')
+        description='Convert NRML ground motion fields file to .csv files. '
+            'Inside the specified output directory, create subdirectories '
+            'for each intensity measure type and stochastic event set. A .csv '
+            'file is created for each ground motion field.'
+            'To run just type: python gmfset_converter.py '
+            '--input-file=PATH_TO_GMF_NRML_FILE'
+            '--output-dir=PATH_TO_OUTPUT_DIRECTORY')
     parser.add_argument('--input-file',
-        help='path to gmfset file',
-        default=None)
-    parser.add_argument('--output-file',
-        help='path to output file (without file extension for multi-csv)',
-        default=None)
-    parser.add_argument('--file-type',
-        help='File type as extension (i.e. "csv", "multi-csv" or "mat")',
-        default='csv')
+        help='path to gmf NRML file',
+        default=None,
+        required=True)
+    parser.add_argument('--output-dir',
+        help='path to output directory (default is the current working directory)',
+        default=os.getcwd())
+
     return parser
 
 
 if __name__ == "__main__":
+
     parser = set_up_arg_parser()
     args = parser.parse_args()
-    # Read input file
-    converter = FILE_MAP[args.file_type](args.input_file)
-    converter.read_gmfset_file()
-    converter.write_file(args.output_file)
+
+    if args.input_file:
+        gmfc = parse_gmfc_file(args.input_file)
+        save_gmfs_to_csv(gmfc, args.output_dir)
+        #converter = FILE_MAP[args.file_type](args.input_file)
+        #converter.read_gmfset_file()
+        #converter.write_file(args.output_file)
+    else:
+        parser.print_usage()
