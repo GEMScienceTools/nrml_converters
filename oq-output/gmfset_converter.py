@@ -211,8 +211,5 @@ if __name__ == "__main__":
     if args.input_file:
         gmfc = parse_gmfc_file(args.input_file)
         save_gmfs_to_csv(gmfc, args.output_dir)
-        #converter = FILE_MAP[args.file_type](args.input_file)
-        #converter.read_gmfset_file()
-        #converter.write_file(args.output_file)
     else:
         parser.print_usage()
