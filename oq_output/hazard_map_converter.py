@@ -86,7 +86,7 @@ def save_hazard_map_to_csv(nrml__hazard_map_file, file_name_root):
     output_file = '%s.csv' % file_name_root
     if os.path.isfile(output_file):
         raise ValueError('Output file already exists.'
-                         ' Please specify different name')
+                         ' Please specify different name or remove old file')
 
     metadata, values = parse_nrml_hazard_map(nrml__hazard_map_file)
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env/python
 # LICENSE
 #
-# Copyright (c) 2013, GEM Foundation, G. Weatherill, M. Pagani,
-# D. Monelli.
+# Copyright (c) 2013, GEM Foundation, G. Weatherill, M. Pagani, D. Monelli.
 #
 # The nrml_convertes is free software: you can redistribute
 # it and/or modify it under the terms of the GNU Affero General Public
@@ -14,10 +13,9 @@
 #
 # DISCLAIMER
 # 
-# The software nrml_convertes provided herein
-# is released as a prototype implementation on behalf of
-# scientists and engineers working within the GEM Foundation (Global
-# Earthquake Model).
+# The software nrml_convertes provided herein is released as a prototype
+# implementation on behalf of scientists and engineers working within the GEM
+# Foundation (Global Earthquake Model).
 #
 # It is distributed for the purpose of open collaboration and in the
 # hope that it will be useful to the scientific, engineering, disaster
@@ -34,148 +32,112 @@
 # directed to the hazard scientific staff of the GEM Model Facility
 # (hazard@globalquakemodel.org).
 #
-# The nrml_convertes is therefore distributed WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-# for more details.
+# The nrml_convertes is therefore distributed WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE. See the GNU General Public License for more details.
 #
-# The GEM Foundation, and the authors of the software, assume no
-# liability for use of the software.
+# The GEM Foundation, and the authors of the software, assume no liability for
+# use of the software.
 '''
-Post-process uniform hazard data to convert OpenQuake uniform hazard
-spectra from XML into different formats
+Convert NRML uniform hazard spectra file to .csv file.
 '''
 
+import os
 import argparse
-import numpy as np
+import numpy
 from lxml import etree
-from scipy.io import savemat
+
+NRML='{http://openquake.org/xmlns/nrml/0.4}'
+GML='{http://www.opengis.net/gml}'
 
 
-xmlNRML = '{http://openquake.org/xmlns/nrml/0.4}'
-xmlGML = '{http://www.opengis.net/gml}'
-
-
-class UHSParser(object):
+def parse_nrml_uhs_curves(nrml_uhs_map):
     """
-    Base class for parsing the uniform hazard spectra nrml files
+    Parse NRML uhs file.
     """
-    def __init__(self, filename):
-        """
-        """
-        self.input_file = filename
-        self.investigation_time = None
-        self.poe = None
-        self.statistics = None
-        self.periods = None
-        self.longitude = []
-        self.latitude = []
-        self.uhs = []
+    metadata = {}
+    periods = None
+    values = []
 
-    def read_file(self):
-        """
-        Reads the input file
-        """
-        parse_args = dict(source=self.input_file)
+    parse_args = dict(source=nrml_uhs_map)
+    for _, element in etree.iterparse(**parse_args):
+        if element.tag == '%suniformHazardSpectra' % NRML:
+            a = element.attrib
+            metadata['statistics'] = a.get('statistics')
+            metadata['quantile_value'] = a.get('quantileValue')
+            metadata['smlt_path'] = a.get('sourceModelTreePath')
+            metadata['gsimlt_path'] = a.get('gsimTreePath')
+            metadata['investigation_time'] = a['investigationTime']
+            metadata['poe'] = a.get('poE')
+        elif element.tag == '%speriods' % NRML:
+            periods = map(float, element.text.split())
+        elif element.tag == '%suhs' % NRML:
+            lon, lat = map(
+                float, element.find('%sPoint/%spos' % (GML, GML)).text.split()
+            )
+            imls = map(float, element.find('%sIMLs' % NRML).text.split())
 
-        for _, element in etree.iterparse(**parse_args):
-            if element.tag == "%suniformHazardSpectra" % xmlNRML:
-                # UHS header info
-                self.poe = float(element.attrib.get('poE'))
-                self.statistics = element.attrib.get('statistics')
-                self.investigation_time = float(
-                    element.attrib.get('investigationTime'))
-            elif element.tag == "%speriods" % xmlNRML:
-                self.periods = map(float, (element.text).split())
-            elif element.tag == "%spos" % xmlGML:
-                location = map(float, (element.text).split())
-                self.longitude.append(location[0])
-                self.latitude.append(location[1])
-            elif element.tag == "%sIMLs" % xmlNRML:
-                self.uhs.append(map(float, (element.text).split()))
-            else:
-                pass
+            uhs = [lon, lat]
+            uhs.extend(imls)
+            values.append(uhs)
 
-        self.longitude = np.array(self.longitude)
-        self.latitude = np.array(self.latitude)
-        self.uhs = np.array(self.uhs)
-        self.periods = np.array(self.periods)
+    return metadata, periods, numpy.array(values)
 
-
-class UHStoCSV(UHSParser):
+def save_uhs_to_csv(nrml_uhs_file, file_name_root):
     """
-    Returns the UHS as a simple csv file
+    Read hazard map in `nrml__hazard_map_file` and save to .csv file
+    with root name `file_name_root`
     """
-    def write_file(self, output_file):
-        """
-        Writes to a simple csv
-        """
-        npts = len(self.longitude)
-        fid = open(output_file, 'wt')
-        # Write header info
-        print >> fid, 'Investigation Time, %6.2f, PoE, %.8e, Statistics, %s'\
-            % (self.investigation_time, self.poe, self.statistics)
-        # Print column headers
-        period_string = ", ".join(['%7.3f' % per for per in self.periods])
-        print >> fid, 'Longitude, Latitude, %s' % period_string
-        for iloc in range(0, npts):
-            uhs_string = ", ".join(['%.6e' % iml for iml in self.uhs[iloc, :]])
-            print >> fid, '%10.5f, %10.5f, %s' % (self.longitude[iloc],
-                                                  self.latitude[iloc],
-                                                  uhs_string)
-        fid.close()
+    output_file = '%s.csv' % file_name_root
+    if os.path.isfile(output_file):
+        raise ValueError('Output file already exists.'
+                         ' Please specify different name or remove old file')
 
+    metadata, periods, values = parse_nrml_uhs_curves(nrml_uhs_file)
 
-class UHStoMatlabBinary(UHSParser):
-    """
-    Returns the UHS data as a data structure in a Matlab Binary
-    """
-    def write_file(self, output_file):
-        """
-        Writes to Matlab Binary
-        """
-        # Creates the Matlab Dictionary
-        mat_dict = {'longitude': self.longitude,
-                    'latitude': self.latitude,
-                    'periods': self.periods,
-                    'poe': self.poe,
-                    'uhs': self.uhs,
-                    'statistics': self.statistics,
-                    'investigation_time': self.investigation_time}
-        savemat(output_file, mat_dict, oned_as='column')
+    header = ','.join(
+        ['%s=%s' % (k, v) for k, v in metadata.items() if v is not None]
+    )
+    header = '# ' + header
+    header += '\nlon,lat,'+','.join([str(p) for p in periods])
 
+    numpy.savetxt(output_file, values, fmt='%g', delimiter=',',
+                  header=header, comments='')
 
 def set_up_arg_parser():
     """
     Can run as executable. To do so, set up the command line parser
     """
     parser = argparse.ArgumentParser(
-        description='Convert Hazard Map file from Nrml to Something Readable'
-                    'To run just type: python uhs_converter.py '
-                    '--input-file=/PATH/INPUT_FILE_NAME '
-                    '--output-file=/PATH/OUTPUT_FILE_NAME')
-    parser.add_argument(
-        '--input-file',
-        help='path to NRML UHS file',
-        default=None)
-    parser.add_argument(
-        '--output-file',
-        help='path to output file root (without file extension)',
-        default=None)
-    parser.add_argument(
-        '--file-type',
-        help='File type as extension (i.e. "csv" or "mat")',
-        default='csv')
+        description='Convert UHS file from Nrml to .csv file.'
+            'To run just type: python uhs_converter.py ' 
+            '--input-file=/PATH/TO/INPUT_FILE '
+            '--output-file=/PATH/TO/OUTPUT_FILE', add_help=False)
+    flags = parser.add_argument_group('flag arguments')
+    flags.add_argument('-h', '--help', action='help')
+    flags.add_argument('--input-file',
+                        help='path to NRML uhs file (Required)',
+                        default=None,
+                        required=True)
+    flags.add_argument('--output-file',
+                        help='path to output file, without file extension '
+                             ' (Optional, default is root of NRML file)',
+                        default=None
+                       )
     return parser
 
-FILEMAP = {'csv': UHStoCSV,
-           'mat': UHStoMatlabBinary}
 
 if __name__ == "__main__":
+
     parser = set_up_arg_parser()
     args = parser.parse_args()
-    # Read in file
-    converter = FILEMAP[args.file_type](args.input_file)
-    converter.read_file()
-    # Write to file
-    converter.write_file(args.output_file)
+
+    if args.input_file:
+        output_file = \
+            os.path.splitext(parser.parse_args().input_file)[0] \
+            if args.output_file is None else args.output_file
+
+        save_uhs_to_csv(args.input_file, output_file)
+    else:
+        parser.print_usage()
+

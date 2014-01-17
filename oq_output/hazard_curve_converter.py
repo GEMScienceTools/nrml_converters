@@ -84,7 +84,7 @@ def save_hazard_curves_to_csv(nrml__hazard_curves_file, file_name_root):
     output_file = '%s.csv' % file_name_root
     if os.path.isfile(output_file):
         raise ValueError('Output file already exists.'
-                         ' Please specify different name')
+                         ' Please specify different name or remove old file')
 
     hcm = HazardCurveXMLParser(nrml__hazard_curves_file).parse()
 
