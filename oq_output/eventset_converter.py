@@ -43,7 +43,7 @@
 # liability for use of the software.
 
 '''
-Convert SES NRML file to .csv files.
+Convert SES NRML file to .txt files.
 '''
 import abc
 import os
@@ -51,7 +51,6 @@ import csv
 import argparse
 import numpy
 from lxml import etree
-from scipy.io import savemat
 
 from openquake.hazardlib.geo.mesh import RectangularMesh
 
@@ -307,27 +306,31 @@ class StochasticEventSetCollection(object):
         for ses in sess:
             for rup in ses.rups:
                 lon, lat, depth = rup.surf.get_middle_point()
+                multi_lons, multi_lats = rup.surf.get_surface_boundaries()
+                boundary = 'MULTIPOLYGON(%s)' % \
+                    ','.join(
+                            '((%s))' % ','.join('%s %s' % \
+                                (lon, lat) for lon, lat in zip(lons, lats)) \
+                                for lons, lats in zip(multi_lons, multi_lats)
+                        )
                 data.append([smtp, ses.ID, rup.ID, rup.magnitude,
-                             lon, lat, rup.strike,
-                             rup.dip, rup.rake])
+                             lon, lat, depth, rup.tect_reg, rup.strike,
+                             rup.dip, rup.rake, boundary])
 
         self.data = numpy.array(data, dtype=object)
 
 
-def save_sess_to_csv(sesc, output_dir):
+def save_sess_to_txt(sesc, output_dir):
     """
-    Save stochastic event sets collection to .csv files.
+    Save stochastic event sets collection to .txt files.
     """
-    os.makedirs(output_dir)
-
     ses_ids = numpy.unique(sesc.data[:, 1])
     for ID in ses_ids:
         idx = sesc.data[:, 1] == ID
-        fname = '%s/ses_%s.csv' % (output_dir, ID)
-        header = 'id,mag,hypo_lon,hypo_lat'
-        #import pdb; pdb.set_trace()
-        numpy.savetxt(fname, sesc.data[idx, 2 : 6], header=header,
-            fmt='%s,%2.1f,%5.2f,%5.2f', comments='')
+        fname = '%s/ses_%s.txt' % (output_dir, ID)
+        header = 'id\tmag\tcentroid_lon\tcentroid_lat\tcentroid_depth\ttrt\tstrike\tdip\trake\tboundary'
+        numpy.savetxt(fname, sesc.data[idx, 2 :], header=header,
+            fmt='%s\t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s', comments='', delimiter=' ')
 
 
 def set_up_arg_parser():
@@ -335,9 +338,9 @@ def set_up_arg_parser():
     Can run as executable. To do so, set up the command line parser
     """
     parser = argparse.ArgumentParser(
-        description='Convert NRML stochastic event set file to .csv files. '
-            'Inside the specified output directory, create a .csv file for '
-            'each stochastic event set.'
+        description='Convert NRML stochastic event set file to tab delimited '
+            ' .txt files. Inside the specified output directory, create a .txt '
+            'file for each stochastic event set.'
             'To run just type: python eventset_converter.py '
             '--input-file=PATH_TO_GMF_NRML_FILE'
             '--output-dir=PATH_TO_OUTPUT_DIRECTORY')
@@ -346,8 +349,9 @@ def set_up_arg_parser():
         default=None,
         required=True)
     parser.add_argument('--output-dir',
-        help='path to output directory (default is the current working directory)',
-        default=os.getcwd())
+        help='path to output directory (Raise an error if it already exists)',
+        default=None,
+        required=True)
 
     return parser
 
@@ -358,7 +362,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.input_file:
+        # create the output directory immediately. Raise an error if
+        # it already exists
+        os.makedirs(args.output_dir)
         sesc = parse_sesc_file(args.input_file)
-        save_sess_to_csv(sesc, args.output_dir)
+        save_sess_to_txt(sesc, args.output_dir)
     else:
         parser.print_usage()
