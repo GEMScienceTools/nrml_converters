@@ -330,7 +330,7 @@ def save_sess_to_txt(sesc, output_dir):
         fname = '%s/ses_%s.txt' % (output_dir, ID)
         header = 'id\tmag\tcentroid_lon\tcentroid_lat\tcentroid_depth\ttrt\tstrike\tdip\trake\tboundary'
         numpy.savetxt(fname, sesc.data[idx, 2 :], header=header,
-            fmt='%s\t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s', comments='', delimiter=' ')
+            fmt='%s\t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s', comments='')
 
 
 def set_up_arg_parser():
@@ -342,14 +342,16 @@ def set_up_arg_parser():
             ' .txt files. Inside the specified output directory, create a .txt '
             'file for each stochastic event set.'
             'To run just type: python eventset_converter.py '
-            '--input-file=PATH_TO_GMF_NRML_FILE'
-            '--output-dir=PATH_TO_OUTPUT_DIRECTORY')
-    parser.add_argument('--input-file',
-        help='path to ses NRML file',
+            '--input-file=PATH_TO_GMF_NRML_FILE '
+            '--output-dir=PATH_TO_OUTPUT_DIRECTORY', add_help=False)
+    flags = parser.add_argument_group('flag arguments')
+    flags.add_argument('-h', '--help', action='help')
+    flags.add_argument('--input-file',
+        help='path to ses NRML file (Required)',
         default=None,
         required=True)
-    parser.add_argument('--output-dir',
-        help='path to output directory (Raise an error if it already exists)',
+    flags.add_argument('--output-dir',
+        help='path to output directory (Required, raise an error if it already exists)',
         default=None,
         required=True)
 
@@ -365,6 +367,7 @@ if __name__ == "__main__":
         # create the output directory immediately. Raise an error if
         # it already exists
         os.makedirs(args.output_dir)
+
         sesc = parse_sesc_file(args.input_file)
         save_sess_to_txt(sesc, args.output_dir)
     else:

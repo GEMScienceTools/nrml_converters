@@ -1,21 +1,22 @@
 nrml_converters
 ===============
 
-Collection of standalone python scripts for converting OpenQuake outputs from NRML to other formats
+Collection of standalone python scripts for converting NRML files (as generated
+or consumed by OpenQuake) to other formats.
 
 Current Functions
 =================
 
-Of November 2013 the repository contains functions for converting the following:
+The ``oq_output`` folder contains scripts for converting OpenQuake NRML output
+files (hazard curves, hazard maps, uniform hazard spectra, stochastic event
+sets, ground motion fields) to .csv (comma separated) or .txt (tab delimited)
+files.
 
-1) Hazard Curves from Nrml to i) Csv, ii) Matlab Binary
+Each script can be executed from shell by invoking the python command followed
+by the script name, and by one or more flag arguments (depending on the script).
 
-2) Hazard Maps from Nrml to i) Csv, ii) .xyz (for GMT format), iii) shapefile
-
-3) Uniform hazard spectra from Nrml to i) Csv, ii) Matlab Binary
-
-4) Ground motion field set from Nrml to i) Csv, ii) Matlab Binary
-
+For each script, an ``help`` flag is available providing instructions for use
+(just type: python SCRIPT_NAME.py --help).
 
 Installation
 ===============
@@ -23,13 +24,12 @@ Installation
 No installation is needed; however, the scripts require the following 
 dependences:
 
-* Numerical/Scientific Python (numpy/scipy)
+* numpy
 * lxml
-* Pyshp
+* oq-hazardlib (https://github.com/gem/oq-hazardlib)
 
-If working in an environment where OpenQuake is already installed then the
-only extra dependency is "PyShp", which can be installed using the standard
-python package installer
+If working in an environment where OpenQuake is already installed then the above
+dependencies are already available.
 
 >> sudo pip install pyshp
 

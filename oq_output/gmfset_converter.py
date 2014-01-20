@@ -172,13 +172,15 @@ def save_gmfs_to_csv(gmf_collection, out_dir):
                 (out_dir, gmf_set.stochasticEventSetId, imt)
             os.makedirs(dir_name)
 
+            map_values = []
             for rup_id, values in gmf_set.gmfs[imt]:
                 print 'saving file for rupture %s' % rup_id
-                header = 'smltp=%s, gsimltp=%s' % \
+                header = '# smltp=%s, gsimltp=%s' % \
                     (gmf_collection.sm_tp, gmf_collection.gsim_tp)
-                header += '\nIMT=%s' % imt
+                header += '\n# IMT=%s' % imt
+                header += '\nlon,lat,gmf_value'
                 fname = '%s/%s.csv' % (dir_name, rup_id)
-                numpy.savetxt(fname, values, header=header, fmt='%5.2f,%5.2f,%g')
+                numpy.savetxt(fname, values, header=header, fmt='%5.2f,%5.2f,%g', comments='')
 
 def set_up_arg_parser():
     """
@@ -191,14 +193,17 @@ def set_up_arg_parser():
             'file is created for each ground motion field.'
             'To run just type: python gmfset_converter.py '
             '--input-file=PATH_TO_GMF_NRML_FILE'
-            '--output-dir=PATH_TO_OUTPUT_DIRECTORY')
-    parser.add_argument('--input-file',
-        help='path to gmf NRML file',
+            '--output-dir=PATH_TO_OUTPUT_DIRECTORY', add_help=False)
+    flags = parser.add_argument_group('flag arguments')
+    flags.add_argument('-h', '--help', action='help')
+    flags.add_argument('--input-file',
+        help='path to gmf NRML file (Required)',
         default=None,
         required=True)
-    parser.add_argument('--output-dir',
-        help='path to output directory (default is the current working directory)',
-        default=os.getcwd())
+    flags.add_argument('--output-dir',
+        help='path to output directory (Required, raise an error if it already exists)',
+        default=None,
+        required=True)
 
     return parser
 
@@ -209,6 +214,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.input_file:
+        # create the output directory immediately. Raise an error if
+        # it already exists
+        os.makedirs(args.output_dir)
+
         gmfc = parse_gmfc_file(args.input_file)
         save_gmfs_to_csv(gmfc, args.output_dir)
     else:
