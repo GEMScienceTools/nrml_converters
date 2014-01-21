@@ -31,6 +31,7 @@ dependences:
 * lxml
 * oq-hazardlib (https://github.com/gem/oq-hazardlib) - only
     for eventset_converter.py
+* shapely - only for source_model_converter.py
 * pyshp - only for source_model_converter.py
 
 If working in an environment where OpenQuake is already installed then the first

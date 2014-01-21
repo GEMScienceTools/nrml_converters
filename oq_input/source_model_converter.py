@@ -1,5 +1,5 @@
 """
-Convert NRML source model file to ESRI shapefile.
+Convert NRML source model file to ESRI shapefile (and vice versa).
 """
 import os
 import argparse
@@ -28,7 +28,8 @@ MAX_HYPO_DEPTHS = 20
 # data type
 BASE_PARAMS = [
     ('id', 'id', 'c'), ('name', 'name', 'c'), ('trt', 'trt', 'c'),
-    ('mag_scale_rel', 'msr', 'c'), ('rupt_aspect_ratio', 'rar', 'f')
+    ('mag_scale_rel', 'msr', 'c'), ('rupt_aspect_ratio', 'rar', 'f'),
+    ('rake', 'rake', 'f')
 ]
 GEOMETRY_PARAMS = [
     ('upper_seismo_depth', 'usd', 'f'), ('lower_seismo_depth', 'lsd', 'f'),
@@ -66,6 +67,9 @@ def register_fields(w):
         for param, dtype in PARAMS:
             w.field(param, fieldType=dtype, size=FIELD_SIZE)
 
+    # source typology
+    w.field('source_type', 'C')
+
 def expand_src_param(values, shp_params):
     """
     Expand hazardlib source attribute (defined through list of values)
@@ -102,7 +106,8 @@ def extract_source_rates(src):
     Extract source occurrence rates.
     """
     rates = getattr(src.mfd, 'occur_rates', None)
-    check_size(rates, 'occur_rates', MAX_RATES)
+    if rates is not None:
+        check_size(rates, 'occur_rates', MAX_RATES)
 
     return expand_src_param(rates, RATE_PARAMS)
 
@@ -111,17 +116,23 @@ def extract_source_nodal_planes(src):
     Extract source nodal planes.
     """
     nodal_planes = getattr(src, 'nodal_plane_dist', None)
-    check_size(nodal_planes, 'nodal_plane_dist', MAX_NODAL_PLANES)
+    if nodal_planes is not None:
+        check_size(nodal_planes, 'nodal_plane_dist', MAX_NODAL_PLANES)
 
-    strikes = [np.strike for np in nodal_planes]
-    dips = [np.dip for np in nodal_planes]
-    rakes = [np.rake for np in nodal_planes]
-    np_weights = [np.probability for np in nodal_planes]
+        strikes = [np.strike for np in nodal_planes]
+        dips = [np.dip for np in nodal_planes]
+        rakes = [np.rake for np in nodal_planes]
+        np_weights = [np.probability for np in nodal_planes]
 
-    strikes = expand_src_param(strikes, STRIKE_PARAMS)
-    dips = expand_src_param(dips, DIP_PARAMS)
-    rakes = expand_src_param(rakes, RAKE_PARAMS)
-    np_weights = expand_src_param(np_weights, NPW_PARAMS)
+        strikes = expand_src_param(strikes, STRIKE_PARAMS)
+        dips = expand_src_param(dips, DIP_PARAMS)
+        rakes = expand_src_param(rakes, RAKE_PARAMS)
+        np_weights = expand_src_param(np_weights, NPW_PARAMS)
+    else:
+        strikes = dict([(key, None) for key, _ in STRIKE_PARAMS])
+        dips = dict([(key, None) for key, _ in DIP_PARAMS])
+        rakes = dict([(key, None) for key, _ in RAKE_PARAMS])
+        np_weights = dict([(key, None) for key, _ in NPW_PARAMS])
 
     return strikes, dips, rakes, np_weights
 
@@ -130,13 +141,17 @@ def extract_source_hypocentral_depths(src):
     Extrac source hypocentral depths.
     """
     hypo_depths = getattr(src, 'hypo_depth_dist', None)
-    check_size(hypo_depths, 'hypo_depths', MAX_HYPO_DEPTHS)
+    if hypo_depths is not None:
+        check_size(hypo_depths, 'hypo_depths', MAX_HYPO_DEPTHS)
 
-    hds = [hd.depth for hd in hypo_depths]
-    hdws = [hd.probability for hd in hypo_depths]
+        hds = [hd.depth for hd in hypo_depths]
+        hdws = [hd.probability for hd in hypo_depths]
 
-    hds = expand_src_param(hds, HDEPTH_PARAMS)
-    hdsw = expand_src_param(hdws, HDW_PARAMS)
+        hds = expand_src_param(hds, HDEPTH_PARAMS)
+        hdsw = expand_src_param(hdws, HDW_PARAMS)
+    else:
+        hds = dict([(key, None) for key, _ in HDEPTH_PARAMS])
+        hdsw = dict([(key, None) for key, _ in HDW_PARAMS])
 
     return hds, hdsw
 
@@ -159,6 +174,8 @@ def set_params(w, src):
     params.update(hds)
     params.update(hdsw)
 
+    params['source_type'] = src.__class__.__name__
+
     w.record(**params)
 
 def set_area_geometry(w, src):
@@ -169,6 +186,23 @@ def set_area_geometry(w, src):
     lons, lats = coords.exterior.xy
 
     w.poly(parts=[[[lon, lat] for lon, lat in zip(lons, lats)]])
+
+def set_point_geometry(w, src):
+    """
+    Set point location as shapefile geometry.
+    """
+    location = wkt.loads(src.geometry.wkt)
+
+    w.point(location.x, location.y)
+
+def set_simple_fault_geometry(w, src):
+    """
+    Set simple fault location as shapefile geometry.
+    """
+    coords = wkt.loads(src.geometry.wkt)
+    lons, lats = coords.xy
+
+    w.line(parts=[[[lon, lat] for lon, lat in zip(lons, lats)]])
 
 def save_area_srcs_to_shp(source_model):
     """
@@ -183,9 +217,47 @@ def save_area_srcs_to_shp(source_model):
             set_params(w, src)
             set_area_geometry(w, src)
 
-    if w.shapes > 0:
+    if len(w.shapes()) > 0:
         root = os.path.splitext(source_model)[0]
         w.save('%s_area' % root)
+
+def save_point_srcs_to_shp(source_model):
+    """
+    Save area sources to ESRI shapefile.
+    """
+    w = shapefile.Writer(shapefile.POINT)
+    register_fields(w)
+
+    srcm = SourceModelParser(source_model).parse()
+    for src in srcm:
+        # make sure that is really a point - AreaSource extends PointSource
+        if isinstance(src, PointSource) and not isinstance(src, AreaSource):
+            set_params(w, src)
+            set_point_geometry(w, src)
+
+    if len(w.shapes()) > 0:
+        root = os.path.splitext(source_model)[0]
+        w.save('%s_point' % root)
+
+def save_simple_fault_srcs_to_shp(source_model):
+    """
+    Save simple fault sources to ESRI shapefile.
+    """
+    w = shapefile.Writer(shapefile.POLYLINE)
+    register_fields(w)
+
+    srcm = SourceModelParser(source_model).parse()
+    for src in srcm:
+        # make sure that is really a SimpleFaultSource - ComplexFaultSource
+        # extends SimpleFaultSource
+        if isinstance(src, SimpleFaultSource) and \
+            not isinstance(src, ComplexFaultSource):
+            set_params(w, src)
+            set_simple_fault_geometry(w, src)
+
+    if len(w.shapes()) > 0:
+        root = os.path.splitext(source_model)[0]
+        w.save('%s_simple_fault' % root)
 
 def extract_record_values(record):
     """
@@ -272,6 +344,38 @@ def create_area_geometry(shape, geometry_params):
 
     return geo
 
+def create_point_geometry(shape, geometry_params):
+    """
+    Create nrmllib point geometry.
+    """
+    assert len(shape.points) == 1
+    lon, lat = shape.points[0]
+
+    wkt = 'POINT(%s %s)' % (lon, lat)
+
+    geo = PointGeometry(
+        wkt, geometry_params['upper_seismo_depth'],
+        geometry_params['lower_seismo_depth']
+    )
+
+    return geo
+
+def create_simple_fault_geometry(shape, geometry_params):
+    """
+    Create nrmllib simple fault geometry.
+    """
+    wkt = 'LINESTRING(%s)' % ','.join(
+        ['%s %s' % (lon, lat) for lon, lat in shape.points]
+    )
+
+    geo = SimpleFaultGeometry(
+        wkt=wkt, dip=geometry_params['dip'],
+        upper_seismo_depth=geometry_params['upper_seismo_depth'],
+        lower_seismo_depth=geometry_params['lower_seismo_depth']
+    )
+
+    return geo
+
 def create_nrml_area(shape, record):
     """
     Create NRML area source from shape and record data.
@@ -296,11 +400,53 @@ def create_nrml_area(shape, record):
 
     return AreaSource(**params)
 
+def create_nrml_point(shape, record):
+    """
+    Create NRML point source from shape and record data.
+    """
+    (src_base_params, geometry_params, mfd_params, rate_params,
+            strike_params, dip_params, rake_params, npw_params, hd_params,
+            hdw_params) = extract_record_values(record)
+
+    params = src_base_params
+
+    params['nodal_plane_dist'] = create_nodal_plane_dist(
+        strike_params, dip_params, rake_params, npw_params
+    )
+
+    params['hypo_depth_dist'] = create_hypocentral_depth_dist(
+        hd_params, hdw_params
+    )
+
+    params['mfd'] = create_mfd(mfd_params, rate_params)
+
+    params['geometry'] = create_point_geometry(shape, geometry_params)
+
+    return PointSource(**params)
+
+def create_nrml_simple_fault(shape, record):
+    """
+    Create NRML point source from shape and record data.
+    """
+    (src_base_params, geometry_params, mfd_params, rate_params,
+            strike_params, dip_params, rake_params, npw_params, hd_params,
+            hdw_params) = extract_record_values(record)
+
+    params = src_base_params
+
+    params['mfd'] = create_mfd(mfd_params, rate_params)
+
+    params['geometry'] = create_simple_fault_geometry(shape, geometry_params)
+
+    return SimpleFaultSource(**params)
+
 def nrml2shp(source_model):
     """
     Convert NRML source model file to ESRI shapefile
     """
     save_area_srcs_to_shp(source_model)
+    save_point_srcs_to_shp(source_model)
+    save_simple_fault_srcs_to_shp(source_model)
 
 def shp2nrml(source_model):
     """
@@ -310,8 +456,12 @@ def shp2nrml(source_model):
 
     srcs = []
     for shape, record in zip(sf.shapes(), sf.records()):
-        if shape.shapeType == shapefile.POLYGON:
+        if record[-1] == 'AreaSource':
             srcs.append(create_nrml_area(shape, record))
+        if record[-1] == 'PointSource':
+            srcs.append(create_nrml_point(shape, record))
+        if record[-1] == 'SimpleFaultSource':
+            srcs.append(create_nrml_simple_fault(shape, record))
     srcm = SourceModel(sources=srcs)
 
     root = os.path.splitext(source_model)[0]
