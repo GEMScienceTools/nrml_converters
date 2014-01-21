@@ -5,12 +5,15 @@ import os
 import argparse
 import shapefile
 from shapely import wkt
+from argparse import RawTextHelpFormatter
+from collections import OrderedDict
 
 from openquake.nrmllib.hazard.parsers import SourceModelParser
+from openquake.nrmllib.hazard.writers import SourceModelXMLWriter
 from openquake.nrmllib.models import (PointSource, PointGeometry, AreaSource,
     AreaGeometry, SimpleFaultSource, SimpleFaultGeometry, ComplexFaultSource,
     ComplexFaultGeometry, IncrementalMFD, TGRMFD, NodalPlane, HypocentralDepth,
-    CharacteristicSource, PlanarSurface, Point)
+    CharacteristicSource, PlanarSurface, Point, SourceModel)
 
 # maximum field size allowed by shapefile
 FIELD_SIZE = 255
@@ -21,7 +24,7 @@ MAX_NODAL_PLANES = 20
 # maximum number of hypocentral depths
 MAX_HYPO_DEPTHS = 20
 
-# each triplet contains hazardlib parameter name, shapefile field name and
+# each triplet contains nrmllib parameter name, shapefile field name and
 # data type
 BASE_PARAMS = [
     ('id', 'id', 'c'), ('name', 'name', 'c'), ('trt', 'trt', 'c'),
@@ -122,7 +125,7 @@ def extract_source_nodal_planes(src):
 
     return strikes, dips, rakes, np_weights
 
-def extract_hypocentral_depths(src):
+def extract_source_hypocentral_depths(src):
     """
     Extrac source hypocentral depths.
     """
@@ -142,11 +145,8 @@ def set_params(w, src):
     Set source parameters.
     """
     params = extract_source_params(src, BASE_PARAMS)
-
     params.update(extract_source_params(src.geometry, GEOMETRY_PARAMS))
-
     params.update(extract_source_params(src.mfd, MFD_PARAMS))
-
     params.update(extract_source_rates(src))
 
     strikes, dips, rakes, np_weights = extract_source_nodal_planes(src)
@@ -155,7 +155,7 @@ def set_params(w, src):
     params.update(rakes)
     params.update(np_weights)
 
-    hds, hdsw = extract_hypocentral_depths(src)
+    hds, hdsw = extract_source_hypocentral_depths(src)
     params.update(hds)
     params.update(hdsw)
 
@@ -187,27 +187,159 @@ def save_area_srcs_to_shp(source_model):
         root = os.path.splitext(source_model)[0]
         w.save('%s_area' % root)
 
+def extract_record_values(record):
+    """
+    Extract values from shapefile record.
+    """
+    src_params = []
+
+    idx0 = 0
+    PARAMS_LIST = [BASE_PARAMS, GEOMETRY_PARAMS, MFD_PARAMS]
+    for PARAMS in PARAMS_LIST:
+        src_params.append(dict(
+            (param, record[idx0 + i])
+             for i, (param, _, _) in enumerate(PARAMS)
+             if record[idx0 + i].strip() !=''
+        ))
+        idx0 += len(PARAMS)
+
+    PARAMS_LIST = [RATE_PARAMS, STRIKE_PARAMS, DIP_PARAMS, RAKE_PARAMS,
+        NPW_PARAMS, HDEPTH_PARAMS, HDW_PARAMS]
+    for PARAMS in PARAMS_LIST:
+        src_params.append(OrderedDict(
+            (param, record[idx0 + i])
+            for i, (param, _) in enumerate(PARAMS)
+            if record[idx0 + i].strip() !=''
+        ))
+        idx0 += len(PARAMS)
+
+    (src_base_params, geometry_params, mfd_params, rate_params,
+            strike_params, dip_params, rake_params, npw_params, hd_params,
+            hdw_params) = src_params
+
+    return (src_base_params, geometry_params, mfd_params, rate_params,
+        strike_params, dip_params, rake_params, npw_params, hd_params,
+        hdw_params)
+
+def create_nodal_plane_dist(strikes, dips, rakes, weights):
+    """
+    Create nrmllib nodal plane distribution
+    """
+    nodal_planes = []
+    for s, d, r, w in \
+        zip(strikes.values(), dips.values(), rakes.values(), weights.values()):
+        nodal_planes.append(NodalPlane(w, s, d, r))
+
+    return nodal_planes
+
+def create_hypocentral_depth_dist(hypo_depths, hypo_depth_weights):
+    """
+    Create nrmllib hypocentral depth distribution
+    """
+    hds = []
+    for d, w in zip(hypo_depths.values(), hypo_depth_weights.values()):
+        hds.append(HypocentralDepth(w, d))
+
+    return hds
+
+def create_mfd(mfd_params, rate_params):
+    """
+    Create nrmllib mfd (either incremental or truncated GR)
+    """
+    if 'min_mag' and 'bin_width' in mfd_params.keys():
+        # incremental MFD
+        rates = [v for v in rate_params.values()]
+        return IncrementalMFD(
+            mfd_params['min_mag'], mfd_params['bin_width'], rates
+        )
+    else:
+        # truncated GR
+        return TGRMFD(mfd_params['a_val'], mfd_params['b_val'],
+            mfd_params['min_mag'], mfd_params['max_mag'])
+
+def create_area_geometry(shape, geometry_params):
+    """
+    Create nrmllib area geometry.
+    """
+    wkt = 'POLYGON((%s))' % ','.join(
+        ['%s %s' % (lon, lat) for lon, lat in shape.points]
+    )
+
+    geo = AreaGeometry(
+        wkt, geometry_params['upper_seismo_depth'],
+        geometry_params['lower_seismo_depth']
+    )
+
+    return geo
+
+def create_nrml_area(shape, record):
+    """
+    Create NRML area source from shape and record data.
+    """
+    (src_base_params, geometry_params, mfd_params, rate_params,
+            strike_params, dip_params, rake_params, npw_params, hd_params,
+            hdw_params) = extract_record_values(record)
+
+    params = src_base_params
+
+    params['nodal_plane_dist'] = create_nodal_plane_dist(
+        strike_params, dip_params, rake_params, npw_params
+    )
+
+    params['hypo_depth_dist'] = create_hypocentral_depth_dist(
+        hd_params, hdw_params
+    )
+
+    params['mfd'] = create_mfd(mfd_params, rate_params)
+
+    params['geometry'] = create_area_geometry(shape, geometry_params)
+
+    return AreaSource(**params)
+
 def nrml2shp(source_model):
     """
     Convert NRML source model file to ESRI shapefile
     """
     save_area_srcs_to_shp(source_model)
 
+def shp2nrml(source_model):
+    """
+    Convert source model ESRI shapefile to NRML.
+    """
+    sf = shapefile.Reader(source_model)
+
+    srcs = []
+    for shape, record in zip(sf.shapes(), sf.records()):
+        if shape.shapeType == shapefile.POLYGON:
+            srcs.append(create_nrml_area(shape, record))
+    srcm = SourceModel(sources=srcs)
+
+    root = os.path.splitext(source_model)[0]
+    smw = SourceModelXMLWriter('%s.xml' % root)
+    smw.serialize(srcm)
+
 def set_up_arg_parser():
     """
     Can run as executable. To do so, set up the command line parser
     """
     parser = argparse.ArgumentParser(
-        description='Convert NRML source model file to ESRI Shapefile. '
-            'To run just type: python source_model_converter.py '
-            '--input-nrml-file=PATH_TO_SOURCE_MODEL_NRML_FILE ',
-            add_help=False)
+        description='Convert NRML source model file to ESRI Shapefile and '
+            'vice versa.\n\nTo convert from NRML to shapefile type: '
+            '\npython source_model_converter.py '
+            '--input-nrml-file=PATH_TO_SOURCE_MODEL_NRML_FILE. '
+            '\n\nTo convert from shapefile to NRML type: '
+            '\npython source_model_converter.py '
+            '--input-shp-file=PATH_TO_SOURCE_MODEL_SHP_FILE ',
+            add_help=False, formatter_class=RawTextHelpFormatter)
     flags = parser.add_argument_group('flag arguments')
     flags.add_argument('-h', '--help', action='help')
-    flags.add_argument('--input-nrml-file',
-        help='path to source model NRML file (Required)',
-        default=None,
-        required=True)
+    group = flags.add_mutually_exclusive_group()
+    group.add_argument('--input-nrml-file',
+        help='path to source model NRML file',
+        default=None)
+    group.add_argument('--input-shp-file',
+        help='path to source model ESRI shapefile (file root only - no extension)',
+        default=None)
 
     return parser
 
@@ -218,5 +350,7 @@ if __name__ == "__main__":
 
     if args.input_nrml_file:
         nrml2shp(args.input_nrml_file)
+    elif args.input_shp_file:
+        shp2nrml(args.input_shp_file)
     else:
         parser.print_usage()
