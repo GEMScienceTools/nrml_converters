@@ -197,12 +197,30 @@ def set_point_geometry(w, src):
 
 def set_simple_fault_geometry(w, src):
     """
-    Set simple fault location as shapefile geometry.
+    Set simple fault coordinates as shapefile geometry.
     """
     coords = wkt.loads(src.geometry.wkt)
     lons, lats = coords.xy
 
     w.line(parts=[[[lon, lat] for lon, lat in zip(lons, lats)]])
+
+def set_complex_fault_geometry(w, src):
+    """
+    Set complex fault coordinates as shapefile geometry.
+    """
+    edges = [src.geometry.top_edge_wkt]
+    edges.extend(src.geometry.int_edges)
+    edges.append(src.geometry.bottom_edge_wkt)
+
+    parts = []
+    for edge in edges:
+        line = wkt.loads(edge)
+        lons = [lon for lon, lat, depth in line.coords]
+        lats = [lat for lon, lat, depth in line.coords]
+        depths = [depth for lon, lat, depth in line.coords]
+        parts.append([[lon, lat, depth] for lon, lat, depth in zip(lons, lats, depths)])
+
+    w.line(parts=parts)
 
 def save_area_srcs_to_shp(source_model):
     """
@@ -258,6 +276,23 @@ def save_simple_fault_srcs_to_shp(source_model):
     if len(w.shapes()) > 0:
         root = os.path.splitext(source_model)[0]
         w.save('%s_simple_fault' % root)
+
+def save_complex_fault_srcs_to_shp(source_model):
+    """
+    Save complex fault sources to ESRI shapefile.
+    """
+    w = shapefile.Writer(shapefile.POLYLINEZ)
+    register_fields(w)
+
+    srcm = SourceModelParser(source_model).parse()
+    for src in srcm:
+        if isinstance(src, ComplexFaultSource):
+            set_params(w, src)
+            set_complex_fault_geometry(w, src)
+
+    if len(w.shapes()) > 0:
+        root = os.path.splitext(source_model)[0]
+        w.save('%s_complex_fault' % root)
 
 def extract_record_values(record):
     """
@@ -376,6 +411,35 @@ def create_simple_fault_geometry(shape, geometry_params):
 
     return geo
 
+def create_complex_fault_geometry(shape, geometry_params):
+    """
+    Create nrmllib complex fault geometry.
+    """
+    edges = []
+    for i, idx in enumerate(shape.parts):
+        idx_start = idx
+        idx_end = shape.parts[i + 1] if i + 1 < len(shape.parts) else None
+        wkt = 'LINESTRING(%s)' % ','.join(
+            ['%s %s %s' % 
+             (lon, lat, depth) for (lon, lat), depth in zip(
+             shape.points[idx_start: idx_end],
+             shape.z[idx_start: idx_end]
+             )
+            ]
+        )
+        edges.append(wkt)
+
+    top_edge = edges[0]
+    bottom_edge = edges[-1]
+
+    int_edges = None
+    if len(edges) > 2:
+        int_edges = [edges[i] for i in range(1, len(edges) - 1)]
+
+    geo = ComplexFaultGeometry(top_edge, bottom_edge, int_edges)
+
+    return geo
+
 def create_nrml_area(shape, record):
     """
     Create NRML area source from shape and record data.
@@ -426,7 +490,7 @@ def create_nrml_point(shape, record):
 
 def create_nrml_simple_fault(shape, record):
     """
-    Create NRML point source from shape and record data.
+    Create NRML simple fault source from shape and record data.
     """
     (src_base_params, geometry_params, mfd_params, rate_params,
             strike_params, dip_params, rake_params, npw_params, hd_params,
@@ -440,6 +504,22 @@ def create_nrml_simple_fault(shape, record):
 
     return SimpleFaultSource(**params)
 
+def create_nrml_complex_fault(shape, record):
+    """
+    Create NRML complex fault source from shape and record data.
+    """
+    (src_base_params, geometry_params, mfd_params, rate_params,
+            strike_params, dip_params, rake_params, npw_params, hd_params,
+            hdw_params) = extract_record_values(record)
+
+    params = src_base_params
+
+    params['mfd'] = create_mfd(mfd_params, rate_params)
+
+    params['geometry'] = create_complex_fault_geometry(shape, geometry_params)
+
+    return ComplexFaultSource(**params)
+
 def nrml2shp(source_model):
     """
     Convert NRML source model file to ESRI shapefile
@@ -447,6 +527,7 @@ def nrml2shp(source_model):
     save_area_srcs_to_shp(source_model)
     save_point_srcs_to_shp(source_model)
     save_simple_fault_srcs_to_shp(source_model)
+    save_complex_fault_srcs_to_shp(source_model)
 
 def shp2nrml(source_model):
     """
@@ -462,6 +543,8 @@ def shp2nrml(source_model):
             srcs.append(create_nrml_point(shape, record))
         if record[-1] == 'SimpleFaultSource':
             srcs.append(create_nrml_simple_fault(shape, record))
+        if record[-1] == 'ComplexFaultSource':
+            srcs.append(create_nrml_complex_fault(shape, record))
     srcm = SourceModel(sources=srcs)
 
     root = os.path.splitext(source_model)[0]

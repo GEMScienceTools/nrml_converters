@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<nrml xmlns:gml="http://www.opengis.net/gml" xmlns="http://openquake.org/xmlns/nrml/0.4">
+  <sourceModel>
+      <pointSource id="1" name="point" tectonicRegion="Stable Continental Crust">
+        <pointGeometry>
+          <gml:Point>
+            <gml:pos>-63.8 16.0</gml:pos>
+          </gml:Point>
+          <upperSeismoDepth>1.0</upperSeismoDepth>
+          <lowerSeismoDepth>15.0</lowerSeismoDepth>
+        </pointGeometry>
+        <magScaleRel>WC1994</magScaleRel>
+        <ruptAspectRatio>2</ruptAspectRatio>
+        <incrementalMFD binWidth="0.1" minMag="5.05">
+          <occurRates>4.07660100585e-07 3.3907690259e-07 2.82031883192e-07 2.34583902735e-07 1.95118391579e-07 1.62292409191e-07 1.3498894629e-07 1.12278915024e-07 9.33895337753e-08 7.76780307945e-08 6.46097718255e-08 5.37400674636e-08 4.46990411729e-08 3.71790430506e-08 3.09241810538e-08 2.57216134515e-08 2.13943062033e-08 1.77950088078e-08 1.48012436328e-08 1.2311138221e-08</occurRates>
+        </incrementalMFD>
+        <nodalPlaneDist>
+          <nodalPlane dip="90.0" probability="0.125" rake="0.0" strike="0.0"/>
+          <nodalPlane dip="90.0" probability="0.125" rake="0.0" strike="45.0"/>
+          <nodalPlane dip="90.0" probability="0.125" rake="0.0" strike="90.0"/>
+          <nodalPlane dip="90.0" probability="0.125" rake="0.0" strike="135.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="0.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="45.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="90.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="135"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="180.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="225.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="270.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="315.0"/>
+        </nodalPlaneDist>
+        <hypoDepthDist>
+          <hypoDepth depth="7.5" probability="1.0"/>
+        </hypoDepthDist>
+      </pointSource>
+      <pointSource id="2" name="point" tectonicRegion="Stable Continental Crust">
+        <pointGeometry>
+          <gml:Point>
+            <gml:pos>-63.6 16.0</gml:pos>
+          </gml:Point>
+          <upperSeismoDepth>1.0</upperSeismoDepth>
+          <lowerSeismoDepth>15.0</lowerSeismoDepth>
+        </pointGeometry>
+        <magScaleRel>WC1994</magScaleRel>
+        <ruptAspectRatio>2</ruptAspectRatio>
+        <incrementalMFD binWidth="0.1" minMag="5.05">
+          <occurRates>9.90715978918e-07 8.24041658716e-07 6.854079976e-07 5.70097540827e-07 4.74186480455e-07 3.94411135189e-07 3.2805689317e-07 2.72865838599e-07 2.26959918918e-07 1.88777038049e-07 1.57017901065e-07 1.3060180152e-07 1.08629846945e-07 9.03543711496e-08 7.5153492483e-08 6.25099523192e-08 5.19935136725e-08 4.32463210051e-08 3.59707230455e-08 2.99191442496e-08</occurRates>
+        </incrementalMFD>
+        <nodalPlaneDist>
+          <nodalPlane dip="90.0" probability="0.125" rake="0.0" strike="0.0"/>
+          <nodalPlane dip="90.0" probability="0.125" rake="0.0" strike="45.0"/>
+          <nodalPlane dip="90.0" probability="0.125" rake="0.0" strike="90.0"/>
+          <nodalPlane dip="90.0" probability="0.125" rake="0.0" strike="135.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="0.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="45.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="90.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="135"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="180.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="225.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="270.0"/>
+          <nodalPlane dip="50.0" probability="0.0625" rake="90.0" strike="315.0"/>
+        </nodalPlaneDist>
+        <hypoDepthDist>
+          <hypoDepth depth="7.5" probability="1.0"/>
+        </hypoDepthDist>
+      </pointSource>
+  </sourceModel>
+</nrml>

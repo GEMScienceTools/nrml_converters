@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<nrml xmlns:gml="http://www.opengis.net/gml" xmlns="http://openquake.org/xmlns/nrml/0.4">
+  <sourceModel>
+      <areaSource id="Zone16" name="Zone16" tectonicRegion="Cratonic">
+        <areaGeometry>
+          <gml:Polygon>
+            <gml:exterior>
+              <gml:LinearRing>
+                <gml:posList>137.139 -32.822 137.5 -34.5 136.342 -34.688 135.968 -35.45 135.448 -35.451 135.193 -34.562 135.283 -33.514 137.139 -32.822</gml:posList>
+              </gml:LinearRing>
+            </gml:exterior>
+          </gml:Polygon>
+          <upperSeismoDepth>0.0</upperSeismoDepth>
+          <lowerSeismoDepth>15.0</lowerSeismoDepth>
+        </areaGeometry>
+        <magScaleRel>WC1994</magScaleRel>
+        <ruptAspectRatio>1.0</ruptAspectRatio>
+        <truncGutenbergRichterMFD aValue="2.89636376416" bValue="0.99" maxMag="7.3" minMag="4.5"/>
+        <nodalPlaneDist>
+          <nodalPlane dip="35.0" probability="0.125" rake="90.0" strike="0.0"/>
+          <nodalPlane dip="35.0" probability="0.125" rake="90.0" strike="45.0"/>
+          <nodalPlane dip="35.0" probability="0.125" rake="90.0" strike="90.0"/>
+          <nodalPlane dip="35.0" probability="0.125" rake="90.0" strike="135.0"/>
+          <nodalPlane dip="35.0" probability="0.125" rake="90.0" strike="180.0"/>
+          <nodalPlane dip="35.0" probability="0.125" rake="90.0" strike="225.0"/>
+          <nodalPlane dip="35.0" probability="0.125" rake="90.0" strike="270.0"/>
+          <nodalPlane dip="35.0" probability="0.125" rake="90.0" strike="315.0"/>
+        </nodalPlaneDist>
+        <hypoDepthDist>
+          <hypoDepth depth="7.5" probability="1.0"/>
+        </hypoDepthDist>
+      </areaSource>
+      <areaSource id="0_0_0" name="ACM     - ARCTIC CONTINENTAL MARGIN   Original magnitudes 7.5 7.0 8.0" tectonicRegion="Stable Continental Crust">
+        <areaGeometry>
+          <gml:Polygon>
+            <gml:exterior>
+              <gml:LinearRing>
+                <gml:posList>-150.0 71.3 -140.0 70.0 -130.0 71.0 -125.0 76.0 -121.0 77.1 -105.0 80.0 -85.0 83.0 -95.0 83.8 -110.0 81.25 -130.0 77.0 -134.0 72.1 -140.0 71.5 -150.0 72.8</gml:posList>
+              </gml:LinearRing>
+            </gml:exterior>
+          </gml:Polygon>
+          <upperSeismoDepth>0.0</upperSeismoDepth>
+          <lowerSeismoDepth>30.0</lowerSeismoDepth>
+        </areaGeometry>
+        <magScaleRel>PointMSR</magScaleRel>
+        <ruptAspectRatio>1.0</ruptAspectRatio>
+        <incrementalMFD binWidth="0.1" minMag="4.85">
+          <occurRates>0.0443936619146 0.0361395377732 0.0294260775186 0.0239646042055 0.0195207365524 0.0159041383226 0.0129602101631 0.0105633544515 0.00861151422578 0.00702174428855 0.0057266186747 0.00467131595611 0.00381125401463 0.00311017031452 0.00253856345073 0.002072427731 0.00169222548755 0.00138205229032 0.00112895871806 0.000922399216202 0.000753784138792 0.000616115584049 0.000352583903379 0.000288304678157 0.000235791293116 2.75545018932e-05 2.25445755161e-05 1.84492239133e-05</occurRates>
+        </incrementalMFD>
+        <nodalPlaneDist>
+          <nodalPlane dip="90.0" probability="1.0" rake="0.0" strike="0.0"/>
+        </nodalPlaneDist>
+        <hypoDepthDist>
+          <hypoDepth depth="10.0" probability="0.5"/>
+          <hypoDepth depth="20.0" probability="0.25"/>
+          <hypoDepth depth="5.0" probability="0.25"/>
+        </hypoDepthDist>
+     </areaSource>
+  </sourceModel>
+</nrml>
