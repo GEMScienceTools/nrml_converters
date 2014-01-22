@@ -17,5 +17,21 @@
         </incrementalMFD>
         <rake>-90.0</rake>
       </simpleFaultSource>
+      <characteristicFaultSource id="26519" name="0 BR-01 Propria fault zone" tectonicRegion="Stable Continental Crust">
+        <incrementalMFD binWidth="0.048" minMag="7.156">
+          <occurRates>5.13732268136e-06 7.66398485581e-06 9.74283423602e-06 1.05542863304e-05 9.74283423602e-06 7.66398485581e-06 5.13732268136e-06</occurRates>
+        </incrementalMFD>
+        <rake>-90.0</rake>
+        <surface>
+          <simpleFaultGeometry>
+            <gml:LineString>
+              <gml:posList>-38.83068 -12.45531 -38.00131 -11.69724 -37.32195 -11.01247 -36.68247 -10.27783 -35.02618 -8.99871</gml:posList>
+            </gml:LineString>
+            <dip>50.0</dip>
+            <upperSeismoDepth>0.0</upperSeismoDepth>
+            <lowerSeismoDepth>20.0000108881</lowerSeismoDepth>
+          </simpleFaultGeometry>
+        </surface>
+      </characteristicFaultSource>
   </sourceModel>
 </nrml>

@@ -160,7 +160,12 @@ def set_params(w, src):
     Set source parameters.
     """
     params = extract_source_params(src, BASE_PARAMS)
-    params.update(extract_source_params(src.geometry, GEOMETRY_PARAMS))
+    # this is done because for characteristic sources geometry is in
+    # 'surface' attribute
+    params.update(extract_source_params(
+        src.geometry if getattr(src, 'geometry', None) else src.surface,
+        GEOMETRY_PARAMS)
+    )
     params.update(extract_source_params(src.mfd, MFD_PARAMS))
     params.update(extract_source_rates(src))
 
@@ -178,39 +183,39 @@ def set_params(w, src):
 
     w.record(**params)
 
-def set_area_geometry(w, src):
+def set_area_geometry(w, geo):
     """
     Set area polygon as shapefile geometry
     """
-    coords = wkt.loads(src.geometry.wkt)
+    coords = wkt.loads(geo.wkt)
     lons, lats = coords.exterior.xy
 
     w.poly(parts=[[[lon, lat] for lon, lat in zip(lons, lats)]])
 
-def set_point_geometry(w, src):
+def set_point_geometry(w, geo):
     """
     Set point location as shapefile geometry.
     """
-    location = wkt.loads(src.geometry.wkt)
+    location = wkt.loads(geo.wkt)
 
     w.point(location.x, location.y)
 
-def set_simple_fault_geometry(w, src):
+def set_simple_fault_geometry(w, geo):
     """
     Set simple fault coordinates as shapefile geometry.
     """
-    coords = wkt.loads(src.geometry.wkt)
+    coords = wkt.loads(geo.wkt)
     lons, lats = coords.xy
 
     w.line(parts=[[[lon, lat] for lon, lat in zip(lons, lats)]])
 
-def set_complex_fault_geometry(w, src):
+def set_complex_fault_geometry(w, geo):
     """
     Set complex fault coordinates as shapefile geometry.
     """
-    edges = [src.geometry.top_edge_wkt]
-    edges.extend(src.geometry.int_edges)
-    edges.append(src.geometry.bottom_edge_wkt)
+    edges = [geo.top_edge_wkt]
+    edges.extend(geo.int_edges)
+    edges.append(geo.bottom_edge_wkt)
 
     parts = []
     for edge in edges:
@@ -222,77 +227,63 @@ def set_complex_fault_geometry(w, src):
 
     w.line(parts=parts)
 
-def save_area_srcs_to_shp(source_model):
+def nrml2shp(source_model):
     """
-    Save area sources to ESRI shapefile.
+    Save nrmllib sources - stored in a NRML file - to multiple
+    shapefiles corresponding to different source typolgies/geometries
+    ('_point', '_area', '_simple', '_complex')
     """
-    w = shapefile.Writer(shapefile.POLYGON)
-    register_fields(w)
+    w_area = shapefile.Writer(shapefile.POLYGON)
+    w_point = shapefile.Writer(shapefile.POINT)
+    w_simple = shapefile.Writer(shapefile.POLYLINE)
+    w_complex = shapefile.Writer(shapefile.POLYLINEZ)
+
+    register_fields(w_area)
+    register_fields(w_point)
+    register_fields(w_simple)
+    register_fields(w_complex)
 
     srcm = SourceModelParser(source_model).parse()
     for src in srcm:
+        # order is important here
         if isinstance(src, AreaSource):
-            set_params(w, src)
-            set_area_geometry(w, src)
+            set_params(w_area, src)
+            set_area_geometry(w_area, src.geometry)
+        elif isinstance(src, PointSource):
+            set_params(w_point, src)
+            set_point_geometry(w_point, src.geometry)
+        elif isinstance(src, ComplexFaultSource):
+            set_params(w_complex, src)
+            set_complex_fault_geometry(w_complex, src.geometry)
+        elif isinstance(src, SimpleFaultSource):
+            set_params(w_simple, src)
+            set_simple_fault_geometry(w_simple, src.geometry)
+        elif isinstance(src, CharacteristicSource):
+            if isinstance(src.surface, SimpleFaultGeometry):
+                set_params(w_simple, src)
+                set_simple_fault_geometry(w_simple, src.surface)
+            elif isinstance(src.surface, ComplexFaultGeometry):
+                set_params(w_complex, src)
+                set_complex_fault_geometry(w_complex, src.surface)
+            else:
+                raise ValueError(
+                    'Geometry class %s not recognized' % src.geometry.__class__
+                )
+        else:
+            raise ValueError('Source class %s not recognized' % src.__class__)
 
-    if len(w.shapes()) > 0:
+    if len(w_area.shapes()) > 0:
         root = os.path.splitext(source_model)[0]
-        w.save('%s_area' % root)
-
-def save_point_srcs_to_shp(source_model):
-    """
-    Save area sources to ESRI shapefile.
-    """
-    w = shapefile.Writer(shapefile.POINT)
-    register_fields(w)
-
-    srcm = SourceModelParser(source_model).parse()
-    for src in srcm:
-        # make sure that is really a point - AreaSource extends PointSource
-        if isinstance(src, PointSource) and not isinstance(src, AreaSource):
-            set_params(w, src)
-            set_point_geometry(w, src)
-
-    if len(w.shapes()) > 0:
+        w_area.save('%s_area' % root)
+    if len(w_point.shapes()) > 0:
         root = os.path.splitext(source_model)[0]
-        w.save('%s_point' % root)
-
-def save_simple_fault_srcs_to_shp(source_model):
-    """
-    Save simple fault sources to ESRI shapefile.
-    """
-    w = shapefile.Writer(shapefile.POLYLINE)
-    register_fields(w)
-
-    srcm = SourceModelParser(source_model).parse()
-    for src in srcm:
-        # make sure that is really a SimpleFaultSource - ComplexFaultSource
-        # extends SimpleFaultSource
-        if isinstance(src, SimpleFaultSource) and \
-            not isinstance(src, ComplexFaultSource):
-            set_params(w, src)
-            set_simple_fault_geometry(w, src)
-
-    if len(w.shapes()) > 0:
+        w_point.save('%s_point' % root)
+    if len(w_complex.shapes()) > 0:
         root = os.path.splitext(source_model)[0]
-        w.save('%s_simple_fault' % root)
-
-def save_complex_fault_srcs_to_shp(source_model):
-    """
-    Save complex fault sources to ESRI shapefile.
-    """
-    w = shapefile.Writer(shapefile.POLYLINEZ)
-    register_fields(w)
-
-    srcm = SourceModelParser(source_model).parse()
-    for src in srcm:
-        if isinstance(src, ComplexFaultSource):
-            set_params(w, src)
-            set_complex_fault_geometry(w, src)
-
-    if len(w.shapes()) > 0:
+        w_complex.save('%s_complex' % root)
+    if len(w_simple.shapes()) > 0:
         root = os.path.splitext(source_model)[0]
-        w.save('%s_complex_fault' % root)
+        w_simple.save('%s_simple' % root)
 
 def extract_record_values(record):
     """
@@ -440,57 +431,9 @@ def create_complex_fault_geometry(shape, geometry_params):
 
     return geo
 
-def create_nrml_area(shape, record):
+def create_nrml_source(shape, record):
     """
-    Create NRML area source from shape and record data.
-    """
-    (src_base_params, geometry_params, mfd_params, rate_params,
-            strike_params, dip_params, rake_params, npw_params, hd_params,
-            hdw_params) = extract_record_values(record)
-
-    params = src_base_params
-
-    params['nodal_plane_dist'] = create_nodal_plane_dist(
-        strike_params, dip_params, rake_params, npw_params
-    )
-
-    params['hypo_depth_dist'] = create_hypocentral_depth_dist(
-        hd_params, hdw_params
-    )
-
-    params['mfd'] = create_mfd(mfd_params, rate_params)
-
-    params['geometry'] = create_area_geometry(shape, geometry_params)
-
-    return AreaSource(**params)
-
-def create_nrml_point(shape, record):
-    """
-    Create NRML point source from shape and record data.
-    """
-    (src_base_params, geometry_params, mfd_params, rate_params,
-            strike_params, dip_params, rake_params, npw_params, hd_params,
-            hdw_params) = extract_record_values(record)
-
-    params = src_base_params
-
-    params['nodal_plane_dist'] = create_nodal_plane_dist(
-        strike_params, dip_params, rake_params, npw_params
-    )
-
-    params['hypo_depth_dist'] = create_hypocentral_depth_dist(
-        hd_params, hdw_params
-    )
-
-    params['mfd'] = create_mfd(mfd_params, rate_params)
-
-    params['geometry'] = create_point_geometry(shape, geometry_params)
-
-    return PointSource(**params)
-
-def create_nrml_simple_fault(shape, record):
-    """
-    Create NRML simple fault source from shape and record data.
+    Create nrmllib source depending on type.
     """
     (src_base_params, geometry_params, mfd_params, rate_params,
             strike_params, dip_params, rake_params, npw_params, hd_params,
@@ -500,34 +443,52 @@ def create_nrml_simple_fault(shape, record):
 
     params['mfd'] = create_mfd(mfd_params, rate_params)
 
-    params['geometry'] = create_simple_fault_geometry(shape, geometry_params)
+    if record[-1] == 'PointSource':
+        params['geometry'] = create_point_geometry(shape, geometry_params)
+        params['nodal_plane_dist'] = create_nodal_plane_dist(
+            strike_params, dip_params, rake_params, npw_params
+        )
+        params['hypo_depth_dist'] = create_hypocentral_depth_dist(
+            hd_params, hdw_params
+        )
+        return PointSource(**params)
 
-    return SimpleFaultSource(**params)
+    elif record[-1] == 'AreaSource':
+        params['geometry'] = create_area_geometry(shape, geometry_params)
+        params['nodal_plane_dist'] = create_nodal_plane_dist(
+            strike_params, dip_params, rake_params, npw_params
+        )
+        params['hypo_depth_dist'] = create_hypocentral_depth_dist(
+            hd_params, hdw_params
+        )
+        return AreaSource(**params)
 
-def create_nrml_complex_fault(shape, record):
-    """
-    Create NRML complex fault source from shape and record data.
-    """
-    (src_base_params, geometry_params, mfd_params, rate_params,
-            strike_params, dip_params, rake_params, npw_params, hd_params,
-            hdw_params) = extract_record_values(record)
+    elif record[-1] == 'SimpleFaultSource':
+        params['geometry'] = \
+            create_simple_fault_geometry(shape, geometry_params)
+        return SimpleFaultSource(**params)
 
-    params = src_base_params
+    elif record[-1] == 'ComplexFaultSource':
+        params['geometry'] = \
+            create_complex_fault_geometry(shape, geometry_params)
+        return ComplexFaultSource(**params)
 
-    params['mfd'] = create_mfd(mfd_params, rate_params)
+    elif record[-1] == 'CharacteristicSource':
+        # this is a simple fault geometry
+        if shape.shapeType == shapefile.POLYLINE:
+            params['surface'] = \
+                create_simple_fault_geometry(shape, geometry_params)
+        # this is a complex fault geometry
+        elif shape.shapeType == shapefile.POLYLINEZ:
+            params['surface'] = \
+                create_complex_fault_geometry(shape, geometry_params)
+        else:
+            raise ValueError('Geometry type not recognized for '
+                'characteristic source')
+        return CharacteristicSource(**params)
 
-    params['geometry'] = create_complex_fault_geometry(shape, geometry_params)
-
-    return ComplexFaultSource(**params)
-
-def nrml2shp(source_model):
-    """
-    Convert NRML source model file to ESRI shapefile
-    """
-    save_area_srcs_to_shp(source_model)
-    save_point_srcs_to_shp(source_model)
-    save_simple_fault_srcs_to_shp(source_model)
-    save_complex_fault_srcs_to_shp(source_model)
+    else:
+        raise ValueError('Source type %s not recognized' % src_type)
 
 def shp2nrml(source_model):
     """
@@ -537,14 +498,7 @@ def shp2nrml(source_model):
 
     srcs = []
     for shape, record in zip(sf.shapes(), sf.records()):
-        if record[-1] == 'AreaSource':
-            srcs.append(create_nrml_area(shape, record))
-        if record[-1] == 'PointSource':
-            srcs.append(create_nrml_point(shape, record))
-        if record[-1] == 'SimpleFaultSource':
-            srcs.append(create_nrml_simple_fault(shape, record))
-        if record[-1] == 'ComplexFaultSource':
-            srcs.append(create_nrml_complex_fault(shape, record))
+        srcs.append(create_nrml_source(shape, record))
     srcm = SourceModel(sources=srcs)
 
     root = os.path.splitext(source_model)[0]
