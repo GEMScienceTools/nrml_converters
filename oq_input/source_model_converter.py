@@ -279,7 +279,7 @@ def set_planar_geometry(w, geo):
 
     w.poly(parts=parts)
 
-def nrml2shp(source_model):
+def nrml2shp(source_model, output_file):
     """
     Save nrmllib sources - stored in a NRML file - to multiple
     shapefiles corresponding to different source typolgies/geometries
@@ -329,7 +329,7 @@ def nrml2shp(source_model):
         else:
             raise ValueError('Source class %s not recognized' % src.__class__)
 
-    root = os.path.splitext(source_model)[0]
+    root = output_file
 
     if len(w_area.shapes()) > 0:
         w_area.save('%s_area' % root)
@@ -580,19 +580,20 @@ def create_nrml_source(shape, record):
     else:
         raise ValueError('Source type %s not recognized' % src_type)
 
-def shp2nrml(source_model):
+def shp2nrml(source_models, output_file):
     """
-    Convert source model ESRI shapefile to NRML.
+    Convert source model ESRI shapefiles to NRML.
     """
-    sf = shapefile.Reader(source_model)
-
     srcs = []
-    for shape, record in zip(sf.shapes(), sf.records()):
-        srcs.append(create_nrml_source(shape, record))
+    for source_model in source_models:
+        sf = shapefile.Reader(source_model)
+
+        for shape, record in zip(sf.shapes(), sf.records()):
+            srcs.append(create_nrml_source(shape, record))
+
     srcm = SourceModel(sources=srcs)
 
-    root = os.path.splitext(source_model)[0]
-    smw = SourceModelXMLWriter('%s.xml' % root)
+    smw = SourceModelXMLWriter('%s.xml' % output_file)
     smw.serialize(srcm)
 
 def set_up_arg_parser():
@@ -600,23 +601,37 @@ def set_up_arg_parser():
     Can run as executable. To do so, set up the command line parser
     """
     parser = argparse.ArgumentParser(
-        description='Convert NRML source model file to ESRI Shapefile and '
+        description='Convert NRML source model file to ESRI Shapefile(s) and '
             'vice versa.\n\nTo convert from NRML to shapefile type: '
             '\npython source_model_converter.py '
-            '--input-nrml-file=PATH_TO_SOURCE_MODEL_NRML_FILE. '
-            '\n\nTo convert from shapefile to NRML type: '
+            '--input-nrml-file PATH_TO_SOURCE_MODEL_NRML_FILE. '
+            '--output-file PATH_TO_OUTPUT_FILE'
+            '\n\nFor each type of source geometry defined in the NRML file '
+            '(point, area, simple fault, complex fault, planar) a separate '
+            'shapefile is created. Each shapefile is differentiated by a specific '
+            'ending (\'_point\', \'_area\', \'_simple\', \'_complex\', \'_planar\')'
+            '\n\nTo convert from shapefile(s) to NRML type: '
             '\npython source_model_converter.py '
-            '--input-shp-file=PATH_TO_SOURCE_MODEL_SHP_FILE ',
+            '--input-shp-files PATH_TO_SOURCE_MODEL_SHP_FILE1 '
+            'PATH_TO_SOURCE_MODEL_SHP_FILE2 ...'
+            '--output-file PATH_TO_OUTPUT_FILE'
+            '\n\nSources defined in different shapefile are saved'
+            ' into a single NRML file.',
             add_help=False, formatter_class=RawTextHelpFormatter)
     flags = parser.add_argument_group('flag arguments')
     flags.add_argument('-h', '--help', action='help')
+    flags.add_argument('--output-file', help='path to output file (root name only)',
+    default=None,
+    required=True)
     group = flags.add_mutually_exclusive_group()
     group.add_argument('--input-nrml-file',
         help='path to source model NRML file',
         default=None)
-    group.add_argument('--input-shp-file',
-        help='path to source model ESRI shapefile (file root only - no extension)',
+    group.add_argument('--input-shp-files',
+        help='path(s) to source model ESRI shapefile(s) (file root only - no extension)',
+        nargs='+',
         default=None)
+    
 
     return parser
 
@@ -626,8 +641,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.input_nrml_file:
-        nrml2shp(args.input_nrml_file)
-    elif args.input_shp_file:
-        shp2nrml(args.input_shp_file)
+        nrml2shp(args.input_nrml_file, args.output_file)
+    elif args.input_shp_files:
+        shp2nrml(args.input_shp_files, args.output_file)
     else:
         parser.print_usage()

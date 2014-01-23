@@ -27,6 +27,7 @@ class TestSourceModelConverter(unittest.TestCase):
         files.extend(glob('%s*_area.xml' % DATA_PATH))
         files.extend(glob('%s*_point.xml' % DATA_PATH))
         files.extend(glob('%s*_planar.xml' % DATA_PATH))
+        files.extend(glob('%stest.xml' % DATA_PATH))
 
         for f in files:
             call(['rm', f])
@@ -197,54 +198,71 @@ class TestSourceModelConverter(unittest.TestCase):
     def test_complex_fault(self):
         # check that by converting original xml file to shapefile
         # and then converting back to xml, we get the same file
-        nrml2shp('%ssource_model_cf.xml' % DATA_PATH)
-        shp2nrml('%ssource_model_cf_complex' % DATA_PATH)
+        nrml2shp('%ssource_model_cf.xml' % DATA_PATH, '%stest' % DATA_PATH)
+        shp2nrml(['%stest_complex' % DATA_PATH], '%stest' % DATA_PATH)
 
         self.assert_source_model_equals(
             '%ssource_model_cf.xml' % DATA_PATH,
-            '%ssource_model_cf_complex.xml' % DATA_PATH
+            '%stest.xml' % DATA_PATH
         )
 
     def test_simple_fault(self):
         # check that by converting original xml file to shapefile
         # and then converting back to xml, we get the same file
-        nrml2shp('%ssource_model_sf.xml' % DATA_PATH)
-        shp2nrml('%ssource_model_sf_simple' % DATA_PATH)
+        nrml2shp('%ssource_model_sf.xml' % DATA_PATH, '%stest' % DATA_PATH)
+        shp2nrml(['%stest_simple' % DATA_PATH], '%stest' % DATA_PATH)
 
         self.assert_source_model_equals(
             '%ssource_model_sf.xml' % DATA_PATH,
-            '%ssource_model_sf_simple.xml' % DATA_PATH
+            '%stest.xml' % DATA_PATH
         )
 
     def test_area_source(self):
         # check that by converting original xml file to shapefile
         # and then converting back to xml, we get the same file
-        nrml2shp('%ssource_model_as.xml' % DATA_PATH)
-        shp2nrml('%ssource_model_as_area' % DATA_PATH)
+        nrml2shp('%ssource_model_as.xml' % DATA_PATH, '%stest' % DATA_PATH)
+        shp2nrml(['%stest_area' % DATA_PATH], '%stest' % DATA_PATH)
 
         self.assert_source_model_equals(
             '%ssource_model_as.xml' % DATA_PATH,
-            '%ssource_model_as_area.xml' % DATA_PATH
+            '%stest.xml' % DATA_PATH
         )
 
     def test_point_source(self):
         # check that by converting original xml file to shapefile
         # and then converting back to xml, we get the same file
-        nrml2shp('%ssource_model_ps.xml' % DATA_PATH)
-        shp2nrml('%ssource_model_ps_point' % DATA_PATH)
+        nrml2shp('%ssource_model_ps.xml' % DATA_PATH, '%stest' % DATA_PATH)
+        shp2nrml(['%stest_point' % DATA_PATH], '%stest' % DATA_PATH)
 
         self.assert_source_model_equals(
             '%ssource_model_ps.xml' % DATA_PATH,
-            '%ssource_model_ps_point.xml' % DATA_PATH
+            '%stest.xml' % DATA_PATH
         )
 
     def test_planar_source(self):
         # check that by converting original xml file to shapefile
         # and then converting back to xml, we get the same file
-        nrml2shp('%ssource_model_pl.xml' % DATA_PATH)
-        shp2nrml('%ssource_model_pl_planar' % DATA_PATH)
+        nrml2shp('%ssource_model_pl.xml' % DATA_PATH, '%stest' % DATA_PATH)
+        shp2nrml(['%stest_planar' % DATA_PATH], '%stest' % DATA_PATH)
 
         self.assert_source_model_equals(
             '%ssource_model_pl.xml' % DATA_PATH,
-            '%ssource_model_pl_planar.xml' % DATA_PATH
+            '%stest.xml' % DATA_PATH
+        )
+
+    def test_full_model(self):
+        # check that by converting original xml file to shapefile
+        # and then converting back to xml, we get the same file
+        nrml2shp('%ssource_model_complete.xml' % DATA_PATH, '%stest' % DATA_PATH)
+        shp2nrml([
+            '%stest_area' % DATA_PATH,
+            '%stest_complex' % DATA_PATH,
+            '%stest_planar' % DATA_PATH,
+            '%stest_point' % DATA_PATH,
+            '%stest_simple' % DATA_PATH
+        ], '%stest' % DATA_PATH)
+
+        self.assert_source_model_equals(
+            '%ssource_model_complete.xml' % DATA_PATH,
+            '%stest.xml' % DATA_PATH
         )
