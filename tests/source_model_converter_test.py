@@ -12,7 +12,7 @@ from oq_input.source_model_converter import nrml2shp, shp2nrml
 from openquake.nrmllib.hazard.parsers import SourceModelParser
 from openquake.nrmllib.models import PointSource, AreaSource, SimpleFaultSource, \
     ComplexFaultSource, CharacteristicSource, IncrementalMFD, TGRMFD, \
-    ComplexFaultGeometry, SimpleFaultGeometry
+    ComplexFaultGeometry, SimpleFaultGeometry, PlanarSurface
 
 DATA_PATH = '%s/data/' % os.path.dirname(__file__)
 
@@ -26,6 +26,7 @@ class TestSourceModelConverter(unittest.TestCase):
         files.extend(glob('%s*_simple.xml' % DATA_PATH))
         files.extend(glob('%s*_area.xml' % DATA_PATH))
         files.extend(glob('%s*_point.xml' % DATA_PATH))
+        files.extend(glob('%s*_planar.xml' % DATA_PATH))
 
         for f in files:
             call(['rm', f])
@@ -164,6 +165,30 @@ class TestSourceModelConverter(unittest.TestCase):
                     geo2.lower_seismo_depth
                 )
                 self.assertEqual(src1.rake, src2.rake)
+            # then CharacteristicSource with list of PlanarSurface
+            elif isinstance(src1, CharacteristicSource) and \
+                isinstance(src1.surface, list):
+                for surf1, surf2 in zip(src1.surface, src2.surface):
+                    assert isinstance(surf1, PlanarSurface)
+                    assert isinstance(surf2, PlanarSurface)
+                    self.assertEqual(surf1.strike, surf2.strike)
+                    self.assertEqual(surf1.dip, surf2.dip)
+                    # top_left
+                    self.assertEqual(surf1.top_left.longitude, surf2.top_left.longitude)
+                    self.assertEqual(surf1.top_left.latitude, surf2.top_left.latitude)
+                    self.assertEqual(surf1.top_left.depth, surf2.top_left.depth)
+                    # top_right
+                    self.assertEqual(surf1.top_right.longitude, surf2.top_right.longitude)
+                    self.assertEqual(surf1.top_right.latitude, surf2.top_right.latitude)
+                    self.assertEqual(surf1.top_right.depth, surf2.top_right.depth)
+                    # bottom_left
+                    self.assertEqual(surf1.bottom_left.longitude, surf2.bottom_left.longitude)
+                    self.assertEqual(surf1.bottom_left.latitude, surf2.bottom_left.latitude)
+                    self.assertEqual(surf1.bottom_left.depth, surf2.bottom_left.depth)
+                    # bottom_right
+                    self.assertEqual(surf1.bottom_right.longitude, surf2.bottom_right.longitude)
+                    self.assertEqual(surf1.bottom_right.latitude, surf2.bottom_right.latitude)
+                    self.assertEqual(surf1.bottom_right.depth, surf2.bottom_right.depth)
             else:
                 raise ValueError(
                     'Source class %s not recognized' % src1.__class__
@@ -211,4 +236,15 @@ class TestSourceModelConverter(unittest.TestCase):
         self.assert_source_model_equals(
             '%ssource_model_ps.xml' % DATA_PATH,
             '%ssource_model_ps_point.xml' % DATA_PATH
+        )
+
+    def test_planar_source(self):
+        # check that by converting original xml file to shapefile
+        # and then converting back to xml, we get the same file
+        nrml2shp('%ssource_model_pl.xml' % DATA_PATH)
+        shp2nrml('%ssource_model_pl_planar' % DATA_PATH)
+
+        self.assert_source_model_equals(
+            '%ssource_model_pl.xml' % DATA_PATH,
+            '%ssource_model_pl_planar.xml' % DATA_PATH
         )

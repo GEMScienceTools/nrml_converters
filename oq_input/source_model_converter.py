@@ -23,6 +23,8 @@ MAX_RATES = 50
 MAX_NODAL_PLANES = 20
 # maximum number of hypocentral depths
 MAX_HYPO_DEPTHS = 20
+# maximum number of planes (for sources described by multi-surface)
+MAX_PLANES = 10
 
 # each triplet contains nrmllib parameter name, shapefile field name and
 # data type
@@ -49,6 +51,8 @@ RAKE_PARAMS = [('rake%s' % (i+1), 'f') for i in range(MAX_NODAL_PLANES)]
 NPW_PARAMS = [('np_weight%s' % (i+1), 'f') for i in range(MAX_NODAL_PLANES)]
 HDEPTH_PARAMS = [('hd%s' % (i+1), 'f') for i in range(MAX_HYPO_DEPTHS)]
 HDW_PARAMS = [('hd_weight%s' % (i+1), 'f') for i in range(MAX_HYPO_DEPTHS)]
+PLANES_STRIKES_PARAM = [('pstrike%s' % (i+1), 'f') for i in range(MAX_PLANES)]
+PLANES_DIPS_PARAM = [('pdip%s' % (i+1), 'f') for i in range(MAX_PLANES)]
 
 def register_fields(w):
     """
@@ -61,7 +65,7 @@ def register_fields(w):
 
     PARAMS_LIST = [
         RATE_PARAMS, STRIKE_PARAMS, DIP_PARAMS, RAKE_PARAMS, NPW_PARAMS,
-        HDEPTH_PARAMS, HDW_PARAMS
+        HDEPTH_PARAMS, HDW_PARAMS, PLANES_STRIKES_PARAM, PLANES_DIPS_PARAM
     ]
     for PARAMS in PARAMS_LIST:
         for param, dtype in PARAMS:
@@ -79,7 +83,7 @@ def expand_src_param(values, shp_params):
         return dict([(key, None) for key, _ in shp_params])
     else:
         num_values = len(values)
-        return dict(
+        return OrderedDict(
             [(key, float(values[i]) if i < num_values else None)
             for i, (key, _) in enumerate(shp_params)]
         )
@@ -97,7 +101,7 @@ def extract_source_params(obj, PARAMS):
     """
     Extract params from source object.
     """
-    return dict(
+    return OrderedDict(
         [(param, getattr(obj, key, None)) for key, param, _ in PARAMS]
     )
 
@@ -107,7 +111,7 @@ def extract_source_rates(src):
     """
     rates = getattr(src.mfd, 'occur_rates', None)
     if rates is not None:
-        check_size(rates, 'occur_rates', MAX_RATES)
+        check_size(rates, 'occurrence rates', MAX_RATES)
 
     return expand_src_param(rates, RATE_PARAMS)
 
@@ -117,7 +121,7 @@ def extract_source_nodal_planes(src):
     """
     nodal_planes = getattr(src, 'nodal_plane_dist', None)
     if nodal_planes is not None:
-        check_size(nodal_planes, 'nodal_plane_dist', MAX_NODAL_PLANES)
+        check_size(nodal_planes, 'nodal planes', MAX_NODAL_PLANES)
 
         strikes = [np.strike for np in nodal_planes]
         dips = [np.dip for np in nodal_planes]
@@ -138,11 +142,11 @@ def extract_source_nodal_planes(src):
 
 def extract_source_hypocentral_depths(src):
     """
-    Extrac source hypocentral depths.
+    Extract source hypocentral depths.
     """
     hypo_depths = getattr(src, 'hypo_depth_dist', None)
     if hypo_depths is not None:
-        check_size(hypo_depths, 'hypo_depths', MAX_HYPO_DEPTHS)
+        check_size(hypo_depths, 'hypo depths', MAX_HYPO_DEPTHS)
 
         hds = [hd.depth for hd in hypo_depths]
         hdws = [hd.probability for hd in hypo_depths]
@@ -154,6 +158,27 @@ def extract_source_hypocentral_depths(src):
         hdsw = dict([(key, None) for key, _ in HDW_PARAMS])
 
     return hds, hdsw
+
+def extract_source_planes_strikes_dips(src):
+    """
+    Extract strike and dip angles for source defined by multiple planes.
+    """
+    planes = getattr(src, 'surface', None)
+    if planes is not None and isinstance(planes, list):
+        for p in planes:
+            assert isinstance(p, PlanarSurface)
+
+        check_size(planes, 'planar surfaces', MAX_PLANES)
+
+        strikes = [p.strike for p in planes]
+        dips = [p.dip for p in planes]
+        strikes = expand_src_param(strikes, PLANES_STRIKES_PARAM)
+        dips = expand_src_param(dips, PLANES_DIPS_PARAM)
+    else:
+        strikes = dict([(key, None) for key, _ in PLANES_STRIKES_PARAM])
+        dips = dict([(key, None) for key, _ in PLANES_DIPS_PARAM])
+
+    return strikes, dips
 
 def set_params(w, src):
     """
@@ -178,6 +203,10 @@ def set_params(w, src):
     hds, hdsw = extract_source_hypocentral_depths(src)
     params.update(hds)
     params.update(hdsw)
+
+    pstrikes, pdips = extract_source_planes_strikes_dips(src)
+    params.update(pstrikes)
+    params.update(pdips)
 
     params['source_type'] = src.__class__.__name__
 
@@ -223,25 +252,50 @@ def set_complex_fault_geometry(w, geo):
         lons = [lon for lon, lat, depth in line.coords]
         lats = [lat for lon, lat, depth in line.coords]
         depths = [depth for lon, lat, depth in line.coords]
-        parts.append([[lon, lat, depth] for lon, lat, depth in zip(lons, lats, depths)])
+        parts.append(
+            [[lon, lat, depth] for lon, lat, depth in zip(lons, lats, depths)]
+        )
 
     w.line(parts=parts)
+
+def set_planar_geometry(w, geo):
+    """
+    Set plane coordinates as shapefile geometry.
+    """
+    assert isinstance(geo, list)
+
+    parts = []
+    for p in geo:
+        assert isinstance(p, PlanarSurface)
+        lons = [p.top_left.longitude, p.top_right.longitude,
+                p.bottom_right.longitude, p.bottom_left.longitude]
+        lats = [p.top_left.latitude, p.top_right.latitude,
+                p.bottom_right.latitude, p.bottom_left.latitude]
+        depths = [p.top_left.depth, p.top_right.depth,
+                p.bottom_right.depth, p.bottom_left.depth]
+        parts.append(
+            [[lon, lat, depth] for lon, lat, depth in zip(lons, lats, depths)]
+        )
+
+    w.poly(parts=parts)
 
 def nrml2shp(source_model):
     """
     Save nrmllib sources - stored in a NRML file - to multiple
     shapefiles corresponding to different source typolgies/geometries
-    ('_point', '_area', '_simple', '_complex')
+    ('_point', '_area', '_simple', '_complex', '_planar')
     """
     w_area = shapefile.Writer(shapefile.POLYGON)
     w_point = shapefile.Writer(shapefile.POINT)
     w_simple = shapefile.Writer(shapefile.POLYLINE)
     w_complex = shapefile.Writer(shapefile.POLYLINEZ)
+    w_planar = shapefile.Writer(shapefile.POLYGONZ)
 
     register_fields(w_area)
     register_fields(w_point)
     register_fields(w_simple)
     register_fields(w_complex)
+    register_fields(w_planar)
 
     srcm = SourceModelParser(source_model).parse()
     for src in srcm:
@@ -265,6 +319,9 @@ def nrml2shp(source_model):
             elif isinstance(src.surface, ComplexFaultGeometry):
                 set_params(w_complex, src)
                 set_complex_fault_geometry(w_complex, src.surface)
+            elif isinstance(src.surface, list):
+                set_params(w_planar, src)
+                set_planar_geometry(w_planar, src.surface)
             else:
                 raise ValueError(
                     'Geometry class %s not recognized' % src.geometry.__class__
@@ -272,18 +329,18 @@ def nrml2shp(source_model):
         else:
             raise ValueError('Source class %s not recognized' % src.__class__)
 
+    root = os.path.splitext(source_model)[0]
+
     if len(w_area.shapes()) > 0:
-        root = os.path.splitext(source_model)[0]
         w_area.save('%s_area' % root)
     if len(w_point.shapes()) > 0:
-        root = os.path.splitext(source_model)[0]
         w_point.save('%s_point' % root)
     if len(w_complex.shapes()) > 0:
-        root = os.path.splitext(source_model)[0]
         w_complex.save('%s_complex' % root)
     if len(w_simple.shapes()) > 0:
-        root = os.path.splitext(source_model)[0]
         w_simple.save('%s_simple' % root)
+    if len(w_planar.shapes()) > 0:
+        w_planar.save('%s_planar' % root)
 
 def extract_record_values(record):
     """
@@ -302,7 +359,8 @@ def extract_record_values(record):
         idx0 += len(PARAMS)
 
     PARAMS_LIST = [RATE_PARAMS, STRIKE_PARAMS, DIP_PARAMS, RAKE_PARAMS,
-        NPW_PARAMS, HDEPTH_PARAMS, HDW_PARAMS]
+        NPW_PARAMS, HDEPTH_PARAMS, HDW_PARAMS, PLANES_STRIKES_PARAM,
+        PLANES_DIPS_PARAM]
     for PARAMS in PARAMS_LIST:
         src_params.append(OrderedDict(
             (param, record[idx0 + i])
@@ -313,11 +371,11 @@ def extract_record_values(record):
 
     (src_base_params, geometry_params, mfd_params, rate_params,
             strike_params, dip_params, rake_params, npw_params, hd_params,
-            hdw_params) = src_params
+            hdw_params, pstrike_params, pdips_params) = src_params
 
     return (src_base_params, geometry_params, mfd_params, rate_params,
         strike_params, dip_params, rake_params, npw_params, hd_params,
-        hdw_params)
+        hdw_params, pstrike_params, pdips_params)
 
 def create_nodal_plane_dist(strikes, dips, rakes, weights):
     """
@@ -431,13 +489,39 @@ def create_complex_fault_geometry(shape, geometry_params):
 
     return geo
 
+def create_planar_surfaces_geometry(shape, pstrikes_params, pdips_params):
+    """
+    Create list of nrmlib planar surfaces.
+    """
+    surfaces = []
+    for i, idx in enumerate(shape.parts):
+        idx_start = idx
+        # the '-1' here is due to the fact that geometry is saved as polygon
+        # for visualization pourposes. Pyshp closes polygons automatically
+        # so we need to extract only the 4 vertices and skip the last one.
+        idx_end = (shape.parts[i + 1] - 1) if i + 1 < len(shape.parts) else -1
+        surface = [Point(lon, lat, depth) for (lon, lat), depth in \
+            zip(shape.points[idx_start: idx_end],shape.z[idx_start: idx_end])]
+        surfaces.append(surface)
+
+    psurfs = []
+    for i, surf in enumerate(surfaces):
+        top_left, top_right, bottom_right, bottom_left = \
+            surf
+        psurfs.append(PlanarSurface(
+            pstrikes_params.values()[i], pdips_params.values()[i],
+            top_left, top_right, bottom_left, bottom_right))
+
+    return psurfs
+
 def create_nrml_source(shape, record):
     """
     Create nrmllib source depending on type.
     """
     (src_base_params, geometry_params, mfd_params, rate_params,
             strike_params, dip_params, rake_params, npw_params, hd_params,
-            hdw_params) = extract_record_values(record)
+            hdw_params, pstrike_params, pdips_params) = \
+                extract_record_values(record)
 
     params = src_base_params
 
@@ -482,6 +566,12 @@ def create_nrml_source(shape, record):
         elif shape.shapeType == shapefile.POLYLINEZ:
             params['surface'] = \
                 create_complex_fault_geometry(shape, geometry_params)
+        # this is a list of planar surfaces
+        elif shape.shapeType == shapefile.POLYGONZ:
+            params['surface'] = \
+                create_planar_surfaces_geometry(
+                    shape, pstrike_params, pdips_params
+                )
         else:
             raise ValueError('Geometry type not recognized for '
                 'characteristic source')
