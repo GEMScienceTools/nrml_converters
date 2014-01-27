@@ -33,14 +33,15 @@ dependences:
     for eventset_converter.py
 * shapely - only for source_model_converter.py
 * pyshp - only for source_model_converter.py
+* GMT (http://gmt.soest.hawaii.edu) - only for disaggregation_converter.py
 
 If working in an environment where OpenQuake is already installed then the first
-three dependencies are already available. The only missing one is ``pyshp``
+four python dependencies are already available. The only missing one is ``pyshp``
 which can be installed using the following command:
 
 >> sudo pip install pyshp
 
-In other environments it is recommended to install numpy and lxml
+In other environments it is recommended to install numpy, lxml and shapely
 using the standard packages (dependent on the OS).
 
 
