@@ -175,6 +175,8 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
                 plot_3d_hist(output_file, 'Longitude', 'Latitude', 'Epsilon', '')
             elif disag_type == 'Lon,Lat,Mag':
                 plot_3d_hist(output_file, 'Longitude', 'Latitude', 'Magnitude', '')
+            elif disag_type == 'Lon,Lat,TRT':
+                plot_3d_hist(output_file, 'Longitude', 'Latitude', '', '')
 
 def plot_1d_hist(hist_file, xlabel, title, annotation_file=None):
     """
@@ -250,22 +252,35 @@ def plot_3d_hist(hist_file, xlabel, ylabel, zlabel, title):
     """
     Plot 3d histogram
     """
+    _, tail = os.path.split(hist_file)
+
     name = os.path.splitext(hist_file)[0]
     plot_file = open('%s.ps' % name,'w')
 
-    x, y, z, p = numpy.loadtxt(
-        hist_file, delimiter=',', skiprows=2, unpack=True
-    )
-
-    x_axis = numpy.unique(x)
-    y_axis = numpy.unique(y)
-    z_axis = numpy.unique(z)
+    if tail == 'Lon_Lat_TRT.csv':
+        x, y, p = numpy.loadtxt(
+            hist_file, delimiter=',', skiprows=2, unpack=True, usecols=(0, 1, 3)
+        )
+        z = numpy.loadtxt(
+            hist_file, delimiter=',', skiprows=2, unpack=True, usecols=(2,),
+            dtype=str
+        )
+        x_axis = numpy.unique(x)
+        y_axis = numpy.unique(y)
+        z_axis = numpy.arange(len(numpy.unique(z)))
+    else:
+        x, y, z, p = numpy.loadtxt(
+            hist_file, delimiter=',', skiprows=2, unpack=True
+        )
+        x_axis = numpy.unique(x)
+        y_axis = numpy.unique(y)
+        z_axis = numpy.unique(z)
 
     p = p.reshape((len(x_axis), len(y_axis), len(z_axis)))
 
     bin_width1 = numpy.diff(x_axis)[0] if len(x_axis) > 1 else 0
     bin_width2 = numpy.diff(y_axis)[0] if len(y_axis) > 1 else 0
-    bin_width3 = numpy.diff(z_axis)[0] if len(z_axis) > 1 else 0
+    bin_width3 = numpy.diff(z_axis)[0] if len(z_axis) > 1 else 1
 
     z_bin_edges = z_axis - bin_width3 / 2.
     z_bin_edges = numpy.append(z_bin_edges, [z_axis[-1] + bin_width3 / 2.])
@@ -276,15 +291,31 @@ def plot_3d_hist(hist_file, xlabel, ylabel, zlabel, title):
         (x_axis[0] - bin_width1, x_axis[-1] + bin_width1,
          y_axis[0] - bin_width2, y_axis[-1] + bin_width2,
          0.0, max_high)
-    projection = '-JX15/15'
+    projection = '-JX12/12'
     annotation = '-B:%s:%s/:%s:%s/%s:Probability::.%s:wEsNZ' % \
         (xlabel, 2 * bin_width1, ylabel, 2 * bin_width2,
         numpy.round(max_high / 4, 4), title)
 
     cpt = open('colors.cpt', 'w')
     call(['makecpt', '-Cjet',
-          '-T%s/%s/%s' % (z_bin_edges[0], z_bin_edges[-1], bin_width3)],
+          '-T%s/%s/%s' % (z_bin_edges[0], z_bin_edges[-1], bin_width3), '-N'],
           stdout=cpt)
+    cpt.close()
+
+    # modify cpt file to create custom annotation
+    if tail == 'Lon_Lat_TRT.csv':
+        cpt_table = numpy.loadtxt('colors.cpt')
+        if len(cpt_table.shape) == 1:
+            cpt_table = cpt_table.reshape(-1, cpt_table.size)
+        annotations = numpy.array([';%s' % trt for trt in numpy.unique(z)])
+        annotations = annotations.reshape(-1, 1)
+        annotations = annotations.astype(object)
+        cpt_table = numpy.concatenate((cpt_table, annotations), axis=1)
+        cpt = open('colors.cpt', 'w')
+        for (v1, r1, g1, b1, v2, r2, g2, b2, label) in cpt_table:
+            cpt.write('%f %i %i %i %f %i %i %i %s' %
+                      (v1, r1, g1, b1, v2, r2, g2, b2, label))
+        cpt.close()
 
     first = False
     for i, v1 in enumerate(x_axis):
@@ -314,8 +345,8 @@ def plot_3d_hist(hist_file, xlabel, ylabel, zlabel, title):
                 else:
                     continue
 
-    call(['psscale', '-B:%s:' % zlabel, '-D22/7.5/10/0.5', '-Li0.3',
-          '-C%s' % cpt.name, '-O'], stdout=plot_file)
+    call(['psscale', '-B:%s:' % zlabel, '-D18/7.5/10/0.5', '-Li0.3',
+              '-C%s' % cpt.name, '-O'], stdout=plot_file)
 
     call(['rm', 'values.dat', 'colors.cpt'])
 
