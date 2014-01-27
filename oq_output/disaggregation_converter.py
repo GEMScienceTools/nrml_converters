@@ -350,24 +350,6 @@ def plot_3d_hist(hist_file, xlabel, ylabel, zlabel, title):
 
     call(['rm', 'values.dat', 'colors.cpt'])
 
-def create_legend_file(dim,file_name,header):
-    """
-    Write legend file for GMT pslegend.
-    Return legend size (hight and width)
-    """
-    legend_file = open(file_name,'w')
-
-    legend_file.write("H 15 Times-Roman %s\n" % (header))
-    for i in range(len(dim) - 1):
-        legend_file.write("G 1.0c\n")
-        legend_file.write("S 1.0c s 1.0c %s 0.25p 2.0c [%s, %s]\n" % (COLORS[i],dim[i],dim[i+1]))
-    legend_file.close()
-
-    hight = (len(dim) - 1) * 2 + 1
-    width = 6.0
-
-    return hight,width
-
 def set_up_arg_parser():
     """
     Can run as executable. To do so, set up the command line parser
