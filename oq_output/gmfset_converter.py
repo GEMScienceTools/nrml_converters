@@ -51,7 +51,6 @@ import csv
 import argparse
 import numpy
 from lxml import etree
-from scipy.io import savemat
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
 

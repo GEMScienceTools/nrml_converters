@@ -8,12 +8,12 @@ Current Functions
 =================
 
 The ``oq_input`` folder contains a script for converting OpenQuake NRML input
-source model file to ESRI shapefile, and vice versa.
+source model and rupture model files to ESRI shapefile, and vice versa.
 
 The ``oq_output`` folder contains scripts for converting OpenQuake NRML output
 files (hazard curves, hazard maps, uniform hazard spectra, stochastic event
-sets, ground motion fields) to .csv (comma separated) or .txt (tab delimited)
-files.
+sets, ground motion fields, disaggregation matrices) to .csv (comma separated)
+or .txt (tab delimited) files.
 
 Each script can be executed from shell by invoking the python command followed
 by the script name, and by one or more flag arguments (depending on the script).
@@ -31,12 +31,14 @@ dependences:
 * lxml
 * oq-hazardlib (https://github.com/gem/oq-hazardlib) - only
     for eventset_converter.py
+* oq-nrmllib (https://github.com/gem/oq-nrmllib) - for source_model_converter.py,
+    rupture_model_converter.py and hazard_curve_converter.py
 * shapely - only for source_model_converter.py
 * pyshp - only for source_model_converter.py
 * GMT (http://gmt.soest.hawaii.edu) - only for disaggregation_converter.py
 
 If working in an environment where OpenQuake is already installed then the first
-four python dependencies are already available. The only missing one is ``pyshp``
+five python dependencies are already available. The only missing one is ``pyshp``
 which can be installed using the following command:
 
 >> sudo pip install pyshp
