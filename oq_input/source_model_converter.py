@@ -43,6 +43,7 @@ Convert NRML source model file to ESRI shapefile (and vice versa).
 """
 import os
 import argparse
+import numpy
 import shapefile
 from shapely import wkt
 from argparse import RawTextHelpFormatter
@@ -93,6 +94,95 @@ HDEPTH_PARAMS = [('hd%s' % (i+1), 'f') for i in range(MAX_HYPO_DEPTHS)]
 HDW_PARAMS = [('hd_weight%s' % (i+1), 'f') for i in range(MAX_HYPO_DEPTHS)]
 PLANES_STRIKES_PARAM = [('pstrike%s' % (i+1), 'f') for i in range(MAX_PLANES)]
 PLANES_DIPS_PARAM = [('pdip%s' % (i+1), 'f') for i in range(MAX_PLANES)]
+
+def appraise_nrml_source_model(source_model):
+    """
+    Identify parameters defined in NRML source model file, so that
+    shapefile contains only source model specific fields.
+    """
+    area_point_source = False
+    simple_fault_geometry = False
+    complex_fault_geometry = False
+    planar_geometry = False
+    mfd_gr = False
+    mfd_incremental = False
+
+    num_r = 0
+    num_np = 0
+    num_hd = 0
+    num_p = 0
+
+    srcm = SourceModelParser(source_model).parse()
+    for src in srcm:
+        # source params
+        if isinstance(src, PointSource):
+            # this is true also for area sources
+            area_point_source = True
+            npd_size = len(src.nodal_plane_dist)
+            hdd_size = len(src.hypo_depth_dist)
+            num_np = npd_size if npd_size > num_np else num_np
+            num_hd = hdd_size if hdd_size > num_hd else num_hd
+        elif isinstance(src, SimpleFaultSource) or \
+            (isinstance(src, CharacteristicSource) and
+             isinstance(src.surface, SimpleFaultGeometry)):
+            simple_fault_geometry = True
+        elif isinstance(src, ComplexFaultSource) or \
+            (isinstance(src, CharacteristicSource) and
+             isinstance(src.surface, ComplexFaultGeometry)):
+            complex_fault_geometry = True
+        elif isinstance(src, CharacteristicSource) and \
+             isinstance(src.surface, list):
+             planar_geometry = True
+             p_size = len(src.surface)
+             num_p = p_size if p_size > num_p else num_p
+        # mfd params
+        if isinstance(src.mfd, TGRMFD):
+            mfd_gr = True
+        elif isinstance(src.mfd, IncrementalMFD):
+            mfd_incremental = True
+            r_size = len(src.mfd.occur_rates)
+            num_r = r_size if r_size > num_r else num_r
+
+    return area_point_source, simple_fault_geometry, complex_fault_geometry, \
+        planar_geometry, mfd_gr, mfd_incremental, num_r, num_np, num_hd, num_p
+
+def filter_params(area_point_source, simple_fault_geometry,
+    complex_fault_geometry, planar_geometry, mfd_gr, mfd_incremental,
+    num_r, num_np, num_hd, num_p):
+    """
+    Remove params uneeded by source_model
+    """
+    # point and area related params
+    STRIKE_PARAMS[num_np:] = []
+    DIP_PARAMS[num_np:] = []
+    RAKE_PARAMS[num_np:] = []
+    NPW_PARAMS[num_np:] = []
+    HDEPTH_PARAMS[num_hd:] = []
+    HDW_PARAMS[num_hd:] = []
+    # planar rupture related params
+    PLANES_STRIKES_PARAM[num_p:] = []
+    PLANES_DIPS_PARAM[num_p:] = []
+    # rate params
+    RATE_PARAMS[num_r:] = []
+
+    if simple_fault_geometry is False:
+        GEOMETRY_PARAMS.remove(('dip', 'dip', 'f'))
+
+    if simple_fault_geometry is False and complex_fault_geometry is False and \
+        planar_geometry is False:
+        BASE_PARAMS.remove(('rake', 'rake', 'f'))
+
+    if simple_fault_geometry is False and complex_fault_geometry is False and \
+        area_point_source is False:
+        GEOMETRY_PARAMS[:] = []
+
+    if mfd_gr is False:
+        MFD_PARAMS.remove(('max_mag', 'max_mag', 'f'))
+        MFD_PARAMS.remove(('a_val', 'a_val', 'f'))
+        MFD_PARAMS.remove(('b_val', 'b_val', 'f'))
+
+    if mfd_incremental is False:
+        MFD_PARAMS.remove(('bin_width', 'bin_width', 'f'))
 
 def register_fields(w):
     """
@@ -325,6 +415,9 @@ def nrml2shp(source_model, output_file):
     shapefiles corresponding to different source typolgies/geometries
     ('_point', '_area', '_simple', '_complex', '_planar')
     """
+    field_flags = appraise_nrml_source_model(source_model)
+    filter_params(*field_flags)
+
     w_area = shapefile.Writer(shapefile.POLYGON)
     w_point = shapefile.Writer(shapefile.POINT)
     w_simple = shapefile.Writer(shapefile.POLYLINE)
@@ -382,32 +475,55 @@ def nrml2shp(source_model, output_file):
     if len(w_planar.shapes()) > 0:
         w_planar.save('%s_planar' % root)
 
-def extract_record_values(record):
+def extract_record_values(record, fields):
     """
     Extract values from shapefile record.
     """
     src_params = []
 
-    idx0 = 0
+    fields = numpy.array([f for f, _, _, _ in fields])
+    record = numpy.array(record)
+
+    #idx0 = 0
     PARAMS_LIST = [BASE_PARAMS, GEOMETRY_PARAMS, MFD_PARAMS]
     for PARAMS in PARAMS_LIST:
-        src_params.append(dict(
-            (param, record[idx0 + i])
-             for i, (param, _, _) in enumerate(PARAMS)
-             if record[idx0 + i].strip() !=''
-        ))
-        idx0 += len(PARAMS)
+        #src_params.append(dict(
+        #    (param, record[idx0 + i])
+        #     for i, (param, _, _) in enumerate(PARAMS)
+        #     if record[idx0 + i].strip() !=''
+        #))
+        #idx0 += len(PARAMS)
+        d = OrderedDict()
+        for p_nrmllib, p_shp, _ in PARAMS:
+            idx = fields == p_shp
+            if numpy.all(idx == False):
+                continue
+            else:
+                # we start from one because fields have an extra
+                # entry at the beginning
+                if record[idx[1:]][0].strip() != '':
+                    d[p_nrmllib] = record[idx[1:]][0]
+        src_params.append(d)
 
     PARAMS_LIST = [RATE_PARAMS, STRIKE_PARAMS, DIP_PARAMS, RAKE_PARAMS,
         NPW_PARAMS, HDEPTH_PARAMS, HDW_PARAMS, PLANES_STRIKES_PARAM,
         PLANES_DIPS_PARAM]
     for PARAMS in PARAMS_LIST:
-        src_params.append(OrderedDict(
-            (param, record[idx0 + i])
-            for i, (param, _) in enumerate(PARAMS)
-            if record[idx0 + i].strip() !=''
-        ))
-        idx0 += len(PARAMS)
+        d = OrderedDict()
+        for p_shp, _ in PARAMS:
+            idx = fields == p_shp
+            if numpy.all(idx == False):
+                continue
+            else:
+                if record[idx[1:]][0].strip() != '':
+                    d[p_shp] = record[idx[1:]][0]
+        src_params.append(d)
+        #src_params.append(OrderedDict(
+        #    (param, record[idx0 + i])
+        #    for i, (param, _) in enumerate(PARAMS)
+        #    if record[idx0 + i].strip() !=''
+        #))
+        #idx0 += len(PARAMS)
 
     (src_base_params, geometry_params, mfd_params, rate_params,
             strike_params, dip_params, rake_params, npw_params, hd_params,
@@ -554,14 +670,14 @@ def create_planar_surfaces_geometry(shape, pstrikes_params, pdips_params):
 
     return psurfs
 
-def create_nrml_source(shape, record):
+def create_nrml_source(shape, record, fields):
     """
     Create nrmllib source depending on type.
     """
     (src_base_params, geometry_params, mfd_params, rate_params,
             strike_params, dip_params, rake_params, npw_params, hd_params,
             hdw_params, pstrike_params, pdips_params) = \
-                extract_record_values(record)
+                extract_record_values(record, fields)
 
     params = src_base_params
 
@@ -629,7 +745,7 @@ def shp2nrml(source_models, output_file):
         sf = shapefile.Reader(source_model)
 
         for shape, record in zip(sf.shapes(), sf.records()):
-            srcs.append(create_nrml_source(shape, record))
+            srcs.append(create_nrml_source(shape, record, sf.fields))
 
     srcm = SourceModel(sources=srcs)
 
