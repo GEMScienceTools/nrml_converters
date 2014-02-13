@@ -83,7 +83,8 @@ def parse_nrml_disaggregation_file(nrml_disaggregation):
                 numpy.array(a.get('epsBinEdges').split(','), dtype=float)
             metadata['TRT'] = \
                 numpy.array(
-                    a.get('tectonicRegionTypes').split(','), dtype=object
+                    map(str.strip, a.get('tectonicRegionTypes').split(',')),
+                    dtype=object
                 )
         elif element.tag == '%sdisaggMatrix' % NRML:
             a = element.attrib
@@ -149,13 +150,15 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
                       header=header, comments='')
 
         if plot:
+            call(['gmtset', 'LABEL_OFFSET=0.6c'])
+
             if disag_type == 'Mag':
                 plot_1d_hist(output_file, 'Magnitude', '')
             elif disag_type == 'Dist':
                 plot_1d_hist(output_file, 'JB distance', '')
             elif disag_type == 'TRT':
                 ntrt = metadata['TRT'].size
-                bin_edges = numpy.linspace(0, ntrt, ntrt)
+                bin_edges = range(ntrt)
                 annotation_file = open("annotation.dat",'w')
                 for i in range(ntrt):
                     annotation_file.write("%s %s %s %s %s %s %s\n" % 
@@ -235,18 +238,39 @@ def plot_2d_hist(hist_file, xlabel, ylabel, title):
     bin_width1 = numpy.diff(numpy.unique(x))[0]
     bin_width2 = numpy.diff(numpy.unique(y))[0]
 
+    # extract only non-zero z values
+    idx = z > 0
+    new_hist = numpy.concatenate(
+        (x[idx].reshape(-1, 1), y[idx].reshape(-1, 1), z[idx].reshape(-1, 1)),
+        axis=1
+    )
+    numpy.savetxt('new_hist.dat', new_hist)
+
     region = '-R%s/%s/%s/%s/%s/%s' % \
         (x[0] - bin_width1, x[-1] + bin_width1,
          y[0] - bin_width2, y[-1] + bin_width2,
          0.0, numpy.max(z))
-    projection = '-JX18/15'
-    annotation = '-B:%s:%s/:%s:%s/%s:Probability::.%s:wEsNZ' % \
-        (xlabel, 2 * bin_width1, ylabel, 2 * bin_width2,
-        numpy.round(numpy.max(y) / 4, 4), title)
 
-    call(['psxyz',hist_file,region,projection,
+    if 'Lon_Lat' in name:
+        projection = '-Jx4d'
+        annotation = '-B:%s:%s/:%s:%s/%s:Probability::.%s:WeSnZ' % \
+            (xlabel, 3 * bin_width1, ylabel, 2 * bin_width2,
+            numpy.round(numpy.max(z) / 4, 4), title)
+        call(['pscoast', region, projection, annotation, '-JZ8c', '-E135/35',
+             '-K', '-Ggray', '-Dh', '-Wthinnest'], stdout=plot_file)
+        call(['psxyz','new_hist.dat', region, projection,
+          '-JZ8c', '-E135/35', '-m', '-So0.5', '-Wthinnest',
+          '-Ggray', '-O'], stdout=plot_file)
+    else:
+        projection = '-JX15/15'
+        annotation = '-B:%s:%s/:%s:%s/%s:Probability::.%s:wEsNZ' % \
+            (xlabel, 2 * bin_width1, ylabel, 2 * bin_width2,
+            numpy.round(numpy.max(z) / 4, 4), title)
+        call(['psxyz','new_hist.dat', region, projection,
           '-JZ8c', annotation, '-E45/35', '-m', '-So0.5', '-Wthinnest',
           '-Ggray'], stdout=plot_file)
+
+    call(['rm', 'new_hist.dat'])
 
 def plot_3d_hist(hist_file, xlabel, ylabel, zlabel, title):
     """
@@ -291,10 +315,6 @@ def plot_3d_hist(hist_file, xlabel, ylabel, zlabel, title):
         (x_axis[0] - bin_width1, x_axis[-1] + bin_width1,
          y_axis[0] - bin_width2, y_axis[-1] + bin_width2,
          0.0, max_high)
-    projection = '-JX12/12'
-    annotation = '-B:%s:%s/:%s:%s/%s:Probability::.%s:wEsNZ' % \
-        (xlabel, 2 * bin_width1, ylabel, 2 * bin_width2,
-        numpy.round(max_high / 4, 4), title)
 
     cpt = open('colors.cpt', 'w')
     call(['makecpt', '-Cjet',
@@ -313,39 +333,73 @@ def plot_3d_hist(hist_file, xlabel, ylabel, zlabel, title):
         cpt_table = numpy.concatenate((cpt_table, annotations), axis=1)
         cpt = open('colors.cpt', 'w')
         for (v1, r1, g1, b1, v2, r2, g2, b2, label) in cpt_table:
-            cpt.write('%f %i %i %i %f %i %i %i %s' %
+            cpt.write('%f %i %i %i %f %i %i %i %s\n' %
                       (v1, r1, g1, b1, v2, r2, g2, b2, label))
         cpt.close()
 
-    first = False
-    for i, v1 in enumerate(x_axis):
-        for j, v2 in enumerate(y_axis):
-            for k, v3 in enumerate(z_axis):
+    if 'Lon_Lat' in tail:
+        projection = '-Jx4d'
+        annotation = '-B:%s:%s/:%s:%s/%s:Probability::.%s:WeSnZ' % \
+            (xlabel, 3 * bin_width1, ylabel, 2 * bin_width2,
+            numpy.round(numpy.max(max_high) / 4, 4), title)
+        call(['pscoast', region, projection, annotation, '-JZ8c', '-E135/35',
+             '-K', '-Ggray', '-Dh', '-Wthinnest'], stdout=plot_file)
+        for i, v1 in enumerate(x_axis):
+            for j in range(len(y_axis))[::-1]:
+                v2 = y_axis[j]
+                for k, v3 in enumerate(z_axis):
 
-                if k == 0:
-                    base_hight = 0.
-                else:
-                    base_hight = numpy.sum(p[i, j, :k])
+                    if k == 0:
+                        base_hight = 0.
+                    else:
+                        base_hight = numpy.sum(p[i, j, :k])
 
-                f = open('values.dat', 'w')
-                f.write('%s %s %s %s' % (v1, v2, base_hight + p[i, j, k], v3))
-                f.close()
+                    f = open('values.dat', 'w')
+                    f.write('%s %s %s %s' % (v1, v2, base_hight + p[i, j, k], v3))
+                    f.close()
 
-                if p[i, j, k] != 0 and first is False:
-                    first = True
-                    call(['psxyz', 'values.dat', region, projection,
-                          '-JZ8c', annotation,'-E45/35','-Wthinnest',
-                          '-K', '-SO0.5b%s' % base_hight, '-C%s' % cpt.name],
-                          stdout=plot_file)
-                elif p[i, j, k] != 0:
-                    call(['psxyz', 'values.dat', region, projection,
-                          '-JZ8c','-E45/35','-Wthinnest',
-                          '-O', '-K', '-SO0.5b%s' % base_hight,
-                          '-C%s' % cpt.name], stdout=plot_file)
-                else:
-                    continue
+                    if p[i, j, k] != 0:
+                        call(['psxyz', 'values.dat', region, projection,
+                              '-JZ8c','-E135/35','-Wthinnest',
+                              '-O', '-K', '-SO0.5b%s' % base_hight,
+                              '-C%s' % cpt.name], stdout=plot_file)
 
-    call(['psscale', '-B:%s:' % zlabel, '-D18/7.5/10/0.5', '-Li0.3',
+    else:
+        projection = '-JX15/15'
+        annotation = '-B:%s:%s/:%s:%s/%s:Probability::.%s:wEsNZ' % \
+            (xlabel, 2 * bin_width1, ylabel, 2 * bin_width2,
+            numpy.round(max_high / 4, 4), title)
+
+        first = False
+        for i, v1 in enumerate(x_axis):
+            for j, v2 in enumerate(y_axis):
+                for k, v3 in enumerate(z_axis):
+
+                    if k == 0:
+                        base_hight = 0.
+                    else:
+                        base_hight = numpy.sum(p[i, j, :k])
+
+                    f = open('values.dat', 'w')
+                    f.write('%s %s %s %s' % (v1, v2, base_hight + p[i, j, k], v3))
+                    f.close()
+
+                    if p[i, j, k] != 0 and first is False:
+                        first = True
+                        call(['psxyz', 'values.dat', region, projection,
+                              '-JZ8c', annotation,'-E45/35','-Wthinnest',
+                              '-K', '-SO0.5b%s' % base_hight, '-C%s' % cpt.name,
+                              '-LABEL_OFFSET=0.6c'],
+                              stdout=plot_file)
+                    elif p[i, j, k] != 0:
+                        call(['psxyz', 'values.dat', region, projection,
+                              '-JZ8c','-E45/35','-Wthinnest',
+                              '-O', '-K', '-SO0.5b%s' % base_hight,
+                              '-C%s' % cpt.name], stdout=plot_file)
+                    else:
+                        continue
+
+    call(['psscale', '-B:%s:' % zlabel, '-D18/14/5/0.5', '-Li0.3',
               '-C%s' % cpt.name, '-O'], stdout=plot_file)
 
     call(['rm', 'values.dat', 'colors.cpt'])
