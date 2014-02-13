@@ -91,7 +91,7 @@ def save_gmfs_to_csv(gmfs, out_dir):
         os.makedirs(dir_name)
         for i, gmf in enumerate(gmfs[imt]):
             header = 'lon,lat,value'
-            fname = '%s/gmf_%s' % (dir_name, (i + 1))
+            fname = '%s/gmf_%s.csv' % (dir_name, (i + 1))
             numpy.savetxt(fname, numpy.array(gmf), header=header, fmt='%g',
                           comments='', delimiter=',')
 
