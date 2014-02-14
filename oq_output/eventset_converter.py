@@ -329,8 +329,11 @@ def save_sess_to_txt(sesc, output_dir):
         idx = sesc.data[:, 1] == ID
         fname = '%s/ses_%s.txt' % (output_dir, ID)
         header = 'id\tmag\tcentroid_lon\tcentroid_lat\tcentroid_depth\ttrt\tstrike\tdip\trake\tboundary'
-        numpy.savetxt(fname, sesc.data[idx, 2 :], header=header,
-            fmt='%s\t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s', comments='')
+        f = open(fname, 'w')
+        f.write(header+'\n')
+        numpy.savetxt(f, sesc.data[idx, 2 :],
+            fmt='%s\t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s')
+        f.close()
 
 
 def set_up_arg_parser():

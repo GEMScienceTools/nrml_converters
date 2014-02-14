@@ -179,7 +179,10 @@ def save_gmfs_to_csv(gmf_collection, out_dir):
                 header += '\n# IMT=%s' % imt
                 header += '\nlon,lat,gmf_value'
                 fname = '%s/%s.csv' % (dir_name, rup_id)
-                numpy.savetxt(fname, values, header=header, fmt='%5.2f,%5.2f,%g', comments='')
+                f = open(fname, 'w')
+                f.write(header+'\n')
+                numpy.savetxt(f, values, fmt='%5.2f,%5.2f,%g')
+                f.close()
 
 def set_up_arg_parser():
     """

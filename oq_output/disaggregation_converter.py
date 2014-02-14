@@ -146,8 +146,10 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             values = numpy.array(values).T
 
         output_file = '%s/%s.csv' % (output_dir, disag_type.replace(',', '_'))
-        numpy.savetxt(output_file, values, fmt='%s', delimiter=',',
-                      header=header, comments='')
+        f = open(output_file, 'w')
+        f.write(header+'\n')
+        numpy.savetxt(f, values, fmt='%s', delimiter=',')
+        f.close()
 
         if plot:
             call(['gmtset', 'LABEL_OFFSET=0.6c'])

@@ -90,8 +90,10 @@ def save_hazard_curves_to_csv(nrml__hazard_curves_file, file_name_root):
 
     curves = _set_curves_matrix(hcm)
     header = _set_header(hcm)
-    numpy.savetxt(output_file, curves, fmt='%g', delimiter=',',
-                  header=header, comments='')
+    f = open(output_file, 'w')
+    f.write(header+'\n')
+    numpy.savetxt(f, curves, fmt='%g', delimiter=',')
+    f.close()
 
 def set_up_arg_parser():
     """

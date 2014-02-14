@@ -95,8 +95,10 @@ def save_hazard_map_to_csv(nrml__hazard_map_file, file_name_root):
     )
     header = '# ' + header + '\nlon,lat,iml'
 
-    numpy.savetxt(output_file, values, fmt='%g', delimiter=',',
-                  header=header, comments='')
+    f = open(output_file, 'w')
+    f.write(header+'\n')
+    numpy.savetxt(f, values, fmt='%g', delimiter=',')
+    f.close()
 
 def set_up_arg_parser():
     """

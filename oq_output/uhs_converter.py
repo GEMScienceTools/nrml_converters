@@ -101,8 +101,10 @@ def save_uhs_to_csv(nrml_uhs_file, file_name_root):
     header = '# ' + header
     header += '\nlon,lat,'+','.join([str(p) for p in periods])
 
-    numpy.savetxt(output_file, values, fmt='%g', delimiter=',',
-                  header=header, comments='')
+    f = open(output_file, 'w')
+    f.write(header+'\n')
+    numpy.savetxt(f, values, fmt='%g', delimiter=',')
+    f.close()
 
 def set_up_arg_parser():
     """
