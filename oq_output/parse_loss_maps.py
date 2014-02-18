@@ -5,7 +5,7 @@
 #
 # Copyright (c) 2010-2014, GEM Foundation, V. Silva
 #
-# The Risk Modeller's Toolkit is free software: you can redistribute
+# The Risk Modellers Toolkit is free software: you can redistribute
 # it and/or modify it under the terms of the GNU Affero General Public
 # License as published by the Free Software Foundation, either version
 # 3 of the License, or (at your option) any later version.
@@ -15,7 +15,7 @@
 #
 # DISCLAIMER
 # 
-# The software Risk Modeller's Toolkit (rmtk) provided herein
+# The software Risk Modellers Toolkit (rmtk) provided herein
 # is released as a prototype implementation on behalf of
 # scientists and engineers working within the GEM Foundation (Global
 # Earthquake Model).
@@ -35,7 +35,7 @@
 # directed to the risk scientific staff of the GEM Model Facility
 # (risk@globalquakemodel.org).
 #
-# The Risk Modeller's Toolkit (rmtk) is therefore distributed WITHOUT
+# The Risk Modellers Toolkit (rmtk) is therefore distributed WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 # FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 # for more details.
@@ -72,7 +72,10 @@ def parse_single_loss_node(element):
             lat = float(coords[1])
         elif e.tag == '%sloss' % xmlNRML:
             ref = e.attrib.get('assetRef')
-            loss = e.attrib.get('value')
+            if e.attrib.get('value') is None:
+                loss = e.attrib.get('mean')
+            else:
+                loss = e.attrib.get('value')
             values.append([ref,lon,lat,loss])
         else:
             continue
@@ -138,7 +141,6 @@ def LossMap2Csv(nrml_loss_map,agg_losses):
     if agg_losses:
         agg_output_file = open('agg_'+nrml_loss_map.replace('xml','csv'),'w')
         agg_values = aggLossMapLosses(values)
-        print len(agg_values)
         for iloc in range(len(agg_values[0])):
             agg_output_file.write(str(agg_values[0][iloc])+','+str(agg_values[1][iloc])+'\n')
         agg_output_file.close()
