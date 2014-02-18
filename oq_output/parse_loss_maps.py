@@ -24,12 +24,12 @@
 # hope that it will be useful to the scientific, engineering, disaster
 # risk and software design communities.
 #
-# The software is NOT distributed as part of GEM’s OpenQuake suite
+# The software is NOT distributed as part of GEMs OpenQuake suite
 # (http://www.globalquakemodel.org/openquake) and must be considered as a
 # separate entity. The software provided herein is designed and implemented
 # by scientific staff. It is not developed to the design standards, nor
 # subject to same level of critical review by professional software
-# developers, as GEM’s OpenQuake software suite.
+# developers, as GEMs OpenQuake software suite.
 #
 # Feedback and contribution to the software is welcome, and can be
 # directed to the risk scientific staff of the GEM Model Facility
