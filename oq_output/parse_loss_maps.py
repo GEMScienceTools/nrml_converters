@@ -139,7 +139,7 @@ def LossMap2Csv(nrml_loss_map,agg_losses):
     output_file.close()
     
     if agg_losses:
-        agg_output_file = open('agg_'+nrml_loss_map.replace('xml','csv'),'w')
+        agg_output_file = open(nrml_loss_map.replace('xml','_agg.csv'),'w')
         agg_values = aggLossMapLosses(values)
         for iloc in range(len(agg_values[0])):
             agg_output_file.write(str(agg_values[0][iloc])+','+str(agg_values[1][iloc])+'\n')
