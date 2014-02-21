@@ -396,7 +396,7 @@ def set_simple_fault_3D_geometry(w, src):
         NRML source object
     """
     # Create an oq object for the source
-    hc = HC(10., 10., 0.1, 50.)
+    hc = HC(1., 10., 0.1, 50.)
     converter = sss.NrmlHazardlibConverter(hc)
     src_oq = converter._nrml_source_to_hazardlib(src)
     lon, lat = \
