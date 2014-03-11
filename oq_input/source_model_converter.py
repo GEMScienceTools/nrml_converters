@@ -12,7 +12,7 @@
 # along with OpenQuake. If not, see <http://www.gnu.org/licenses/>
 #
 # DISCLAIMER
-# 
+#
 # The software nrml_convertes provided herein is released as a prototype
 # implementation on behalf of scientists and engineers working within the GEM
 # Foundation (Global Earthquake Model).
@@ -41,20 +41,26 @@
 """
 Convert NRML source model file to ESRI shapefile (and vice versa).
 """
-import os
-import argparse
 import numpy
+import argparse
 import shapefile
 from shapely import wkt
 from argparse import RawTextHelpFormatter
 from collections import OrderedDict
 
+from openquake.hazardlib.geo.surface.simple_fault import SimpleFaultSurface
+
+import openquake.engine.input.source as sss
+
 from openquake.nrmllib.hazard.parsers import SourceModelParser
 from openquake.nrmllib.hazard.writers import SourceModelXMLWriter
 from openquake.nrmllib.models import (PointSource, PointGeometry, AreaSource,
-    AreaGeometry, SimpleFaultSource, SimpleFaultGeometry, ComplexFaultSource,
-    ComplexFaultGeometry, IncrementalMFD, TGRMFD, NodalPlane, HypocentralDepth,
-    CharacteristicSource, PlanarSurface, Point, SourceModel)
+                                      AreaGeometry, SimpleFaultSource,
+                                      SimpleFaultGeometry, ComplexFaultSource,
+                                      ComplexFaultGeometry, IncrementalMFD,
+                                      TGRMFD, NodalPlane, HypocentralDepth,
+                                      CharacteristicSource, PlanarSurface,
+                                      Point, SourceModel)
 
 # maximum field size allowed by shapefile
 FIELD_SIZE = 255
@@ -95,6 +101,7 @@ HDW_PARAMS = [('hd_weight%s' % (i+1), 'f') for i in range(MAX_HYPO_DEPTHS)]
 PLANES_STRIKES_PARAM = [('pstrike%s' % (i+1), 'f') for i in range(MAX_PLANES)]
 PLANES_DIPS_PARAM = [('pdip%s' % (i+1), 'f') for i in range(MAX_PLANES)]
 
+
 def appraise_nrml_source_model(source_model):
     """
     Identify parameters defined in NRML source model file, so that
@@ -127,14 +134,14 @@ def appraise_nrml_source_model(source_model):
              isinstance(src.surface, SimpleFaultGeometry)):
             simple_fault_geometry = True
         elif isinstance(src, ComplexFaultSource) or \
-            (isinstance(src, CharacteristicSource) and
-             isinstance(src.surface, ComplexFaultGeometry)):
+                (isinstance(src, CharacteristicSource) and
+                    isinstance(src.surface, ComplexFaultGeometry)):
             complex_fault_geometry = True
         elif isinstance(src, CharacteristicSource) and \
-             isinstance(src.surface, list):
-             planar_geometry = True
-             p_size = len(src.surface)
-             num_p = p_size if p_size > num_p else num_p
+                isinstance(src.surface, list):
+            planar_geometry = True
+            p_size = len(src.surface)
+            num_p = p_size if p_size > num_p else num_p
         # mfd params
         if isinstance(src.mfd, TGRMFD):
             mfd_gr = True
@@ -146,9 +153,10 @@ def appraise_nrml_source_model(source_model):
     return area_point_source, simple_fault_geometry, complex_fault_geometry, \
         planar_geometry, mfd_gr, mfd_incremental, num_r, num_np, num_hd, num_p
 
+
 def filter_params(area_point_source, simple_fault_geometry,
-    complex_fault_geometry, planar_geometry, mfd_gr, mfd_incremental,
-    num_r, num_np, num_hd, num_p):
+                  complex_fault_geometry, planar_geometry, mfd_gr,
+                  mfd_incremental, num_r, num_np, num_hd, num_p):
     """
     Remove params uneeded by source_model
     """
@@ -169,11 +177,11 @@ def filter_params(area_point_source, simple_fault_geometry,
         GEOMETRY_PARAMS.remove(('dip', 'dip', 'f'))
 
     if simple_fault_geometry is False and complex_fault_geometry is False and \
-        planar_geometry is False:
+            planar_geometry is False:
         BASE_PARAMS.remove(('rake', 'rake', 'f'))
 
     if simple_fault_geometry is False and complex_fault_geometry is False and \
-        area_point_source is False:
+            area_point_source is False:
         GEOMETRY_PARAMS[:] = []
 
     if mfd_gr is False:
@@ -183,6 +191,7 @@ def filter_params(area_point_source, simple_fault_geometry,
 
     if mfd_incremental is False:
         MFD_PARAMS.remove(('bin_width', 'bin_width', 'f'))
+
 
 def register_fields(w):
     """
@@ -204,6 +213,7 @@ def register_fields(w):
     # source typology
     w.field('source_type', 'C')
 
+
 def expand_src_param(values, shp_params):
     """
     Expand hazardlib source attribute (defined through list of values)
@@ -215,8 +225,9 @@ def expand_src_param(values, shp_params):
         num_values = len(values)
         return OrderedDict(
             [(key, float(values[i]) if i < num_values else None)
-            for i, (key, _) in enumerate(shp_params)]
+                for i, (key, _) in enumerate(shp_params)]
         )
+
 
 def check_size(values, name, MAX):
     """
@@ -225,7 +236,8 @@ def check_size(values, name, MAX):
     num_values = len(values)
     if values is not None and num_values > MAX:
         raise ValueError('Number of values in NRML file for %s'
-            'is too large for being saved in shapefile.' % name)
+                         'is too large for being saved in shapefile.' % name)
+
 
 def extract_source_params(obj, PARAMS):
     """
@@ -234,6 +246,7 @@ def extract_source_params(obj, PARAMS):
     return OrderedDict(
         [(param, getattr(obj, key, None)) for key, param, _ in PARAMS]
     )
+
 
 def extract_source_rates(src):
     """
@@ -244,6 +257,7 @@ def extract_source_rates(src):
         check_size(rates, 'occurrence rates', MAX_RATES)
 
     return expand_src_param(rates, RATE_PARAMS)
+
 
 def extract_source_nodal_planes(src):
     """
@@ -270,6 +284,7 @@ def extract_source_nodal_planes(src):
 
     return strikes, dips, rakes, np_weights
 
+
 def extract_source_hypocentral_depths(src):
     """
     Extract source hypocentral depths.
@@ -288,6 +303,7 @@ def extract_source_hypocentral_depths(src):
         hdsw = dict([(key, None) for key, _ in HDW_PARAMS])
 
     return hds, hdsw
+
 
 def extract_source_planes_strikes_dips(src):
     """
@@ -309,6 +325,7 @@ def extract_source_planes_strikes_dips(src):
         dips = dict([(key, None) for key, _ in PLANES_DIPS_PARAM])
 
     return strikes, dips
+
 
 def set_params(w, src):
     """
@@ -342,31 +359,78 @@ def set_params(w, src):
 
     w.record(**params)
 
+
 def set_area_geometry(w, geo):
     """
     Set area polygon as shapefile geometry
     """
     coords = wkt.loads(geo.wkt)
     lons, lats = coords.exterior.xy
-
     w.poly(parts=[[[lon, lat] for lon, lat in zip(lons, lats)]])
+
 
 def set_point_geometry(w, geo):
     """
     Set point location as shapefile geometry.
     """
     location = wkt.loads(geo.wkt)
-
     w.point(location.x, location.y)
+
+
+class HC(object):
+    def __init__(self, rupture_mesh_spacing, area_source_discretization,
+                 width_of_mfd_bin, investigation_time):
+        self.rupture_mesh_spacing = rupture_mesh_spacing
+        self.area_source_discretization = area_source_discretization
+        self.width_of_mfd_bin = width_of_mfd_bin
+        self.investigation_time = investigation_time
+
+
+def set_simple_fault_3D_geometry(w, src):
+    """
+    Set simple fault surface coordinates as shapefile geometry.
+
+    :parameter w:
+        Writer
+    :parameter src:
+        NRML source object
+    """
+    # Create an oq object for the source
+    hc = HC(1., 10., 0.1, 50.)
+    converter = sss.NrmlHazardlibConverter(hc)
+    src_oq = converter._nrml_source_to_hazardlib(src)
+    lon, lat = \
+        SimpleFaultSurface.get_surface_vertexes(src_oq.fault_trace,
+                                                src_oq.upper_seismogenic_depth,
+                                                src_oq.lower_seismogenic_depth,
+                                                src_oq.dip)
+    # Reorder the vertexes
+    print lon, lat
+    lons = numpy.concatenate([lon[::2], numpy.flipud(lon[1::2])])
+    lats = numpy.concatenate([lat[::2], numpy.flipud(lat[1::2])])
+    depths = numpy.concatenate([numpy.ones_like(lon[::2]) *
+                                src_oq.upper_seismogenic_depth,
+                                numpy.ones_like(lon[::2]) *
+                                src_oq.lower_seismogenic_depth])
+    # Create the 3D polygon
+    w.poly(parts=[[[tlon, tlat, tdep] for tlon, tlat, tdep
+                  in zip(list(lons), list(lats), list(depths))]])
+
 
 def set_simple_fault_geometry(w, geo):
     """
-    Set simple fault coordinates as shapefile geometry.
+    Set simple fault trace coordinates as shapefile geometry.
+
+    :parameter w:
+        Writer
+    :parameter geo:
+        A NRML source geometry object
     """
     coords = wkt.loads(geo.wkt)
     lons, lats = coords.xy
 
     w.line(parts=[[[lon, lat] for lon, lat in zip(lons, lats)]])
+
 
 def set_complex_fault_geometry(w, geo):
     """
@@ -388,6 +452,7 @@ def set_complex_fault_geometry(w, geo):
 
     w.line(parts=parts)
 
+
 def set_planar_geometry(w, geo):
     """
     Set plane coordinates as shapefile geometry.
@@ -402,12 +467,13 @@ def set_planar_geometry(w, geo):
         lats = [p.top_left.latitude, p.top_right.latitude,
                 p.bottom_right.latitude, p.bottom_left.latitude]
         depths = [p.top_left.depth, p.top_right.depth,
-                p.bottom_right.depth, p.bottom_left.depth]
+                  p.bottom_right.depth, p.bottom_left.depth]
         parts.append(
             [[lon, lat, depth] for lon, lat, depth in zip(lons, lats, depths)]
         )
 
     w.poly(parts=parts)
+
 
 def nrml2shp(source_model, output_file):
     """
@@ -421,18 +487,20 @@ def nrml2shp(source_model, output_file):
     w_area = shapefile.Writer(shapefile.POLYGON)
     w_point = shapefile.Writer(shapefile.POINT)
     w_simple = shapefile.Writer(shapefile.POLYLINE)
+    w_simple3d = shapefile.Writer(shapefile.POLYGONZ)
     w_complex = shapefile.Writer(shapefile.POLYLINEZ)
     w_planar = shapefile.Writer(shapefile.POLYGONZ)
 
     register_fields(w_area)
     register_fields(w_point)
     register_fields(w_simple)
+    register_fields(w_simple3d)
     register_fields(w_complex)
     register_fields(w_planar)
 
     srcm = SourceModelParser(source_model).parse()
     for src in srcm:
-        # order is important here
+        # Order is important here
         if isinstance(src, AreaSource):
             set_params(w_area, src)
             set_area_geometry(w_area, src.geometry)
@@ -445,6 +513,9 @@ def nrml2shp(source_model, output_file):
         elif isinstance(src, SimpleFaultSource):
             set_params(w_simple, src)
             set_simple_fault_geometry(w_simple, src.geometry)
+            # Create the 3D polygon
+            set_params(w_simple3d, src)
+            set_simple_fault_3D_geometry(w_simple3d, src)
         elif isinstance(src, CharacteristicSource):
             if isinstance(src.surface, SimpleFaultGeometry):
                 set_params(w_simple, src)
@@ -472,8 +543,10 @@ def nrml2shp(source_model, output_file):
         w_complex.save('%s_complex' % root)
     if len(w_simple.shapes()) > 0:
         w_simple.save('%s_simple' % root)
+        w_simple3d.save('%s_simple3d' % root)
     if len(w_planar.shapes()) > 0:
         w_planar.save('%s_planar' % root)
+
 
 def extract_record_values(record, fields):
     """
@@ -506,8 +579,8 @@ def extract_record_values(record, fields):
         src_params.append(d)
 
     PARAMS_LIST = [RATE_PARAMS, STRIKE_PARAMS, DIP_PARAMS, RAKE_PARAMS,
-        NPW_PARAMS, HDEPTH_PARAMS, HDW_PARAMS, PLANES_STRIKES_PARAM,
-        PLANES_DIPS_PARAM]
+                   NPW_PARAMS, HDEPTH_PARAMS, HDW_PARAMS, PLANES_STRIKES_PARAM,
+                   PLANES_DIPS_PARAM]
     for PARAMS in PARAMS_LIST:
         d = OrderedDict()
         for p_shp, _ in PARAMS:
@@ -526,23 +599,25 @@ def extract_record_values(record, fields):
         #idx0 += len(PARAMS)
 
     (src_base_params, geometry_params, mfd_params, rate_params,
-            strike_params, dip_params, rake_params, npw_params, hd_params,
-            hdw_params, pstrike_params, pdips_params) = src_params
+     strike_params, dip_params, rake_params, npw_params, hd_params,
+     hdw_params, pstrike_params, pdips_params) = src_params
 
     return (src_base_params, geometry_params, mfd_params, rate_params,
-        strike_params, dip_params, rake_params, npw_params, hd_params,
-        hdw_params, pstrike_params, pdips_params)
+            strike_params, dip_params, rake_params, npw_params, hd_params,
+            hdw_params, pstrike_params, pdips_params)
+
 
 def create_nodal_plane_dist(strikes, dips, rakes, weights):
     """
     Create nrmllib nodal plane distribution
     """
     nodal_planes = []
-    for s, d, r, w in \
-        zip(strikes.values(), dips.values(), rakes.values(), weights.values()):
+    for s, d, r, w in zip(strikes.values(), dips.values(),
+                          rakes.values(), weights.values()):
         nodal_planes.append(NodalPlane(w, s, d, r))
 
     return nodal_planes
+
 
 def create_hypocentral_depth_dist(hypo_depths, hypo_depth_weights):
     """
@@ -553,6 +628,7 @@ def create_hypocentral_depth_dist(hypo_depths, hypo_depth_weights):
         hds.append(HypocentralDepth(w, d))
 
     return hds
+
 
 def create_mfd(mfd_params, rate_params):
     """
@@ -567,7 +643,8 @@ def create_mfd(mfd_params, rate_params):
     else:
         # truncated GR
         return TGRMFD(mfd_params['a_val'], mfd_params['b_val'],
-            mfd_params['min_mag'], mfd_params['max_mag'])
+                      mfd_params['min_mag'], mfd_params['max_mag'])
+
 
 def create_area_geometry(shape, geometry_params):
     """
@@ -583,6 +660,7 @@ def create_area_geometry(shape, geometry_params):
     )
 
     return geo
+
 
 def create_point_geometry(shape, geometry_params):
     """
@@ -600,6 +678,7 @@ def create_point_geometry(shape, geometry_params):
 
     return geo
 
+
 def create_simple_fault_geometry(shape, geometry_params):
     """
     Create nrmllib simple fault geometry.
@@ -616,6 +695,7 @@ def create_simple_fault_geometry(shape, geometry_params):
 
     return geo
 
+
 def create_complex_fault_geometry(shape, geometry_params):
     """
     Create nrmllib complex fault geometry.
@@ -625,12 +705,10 @@ def create_complex_fault_geometry(shape, geometry_params):
         idx_start = idx
         idx_end = shape.parts[i + 1] if i + 1 < len(shape.parts) else None
         wkt = 'LINESTRING(%s)' % ','.join(
-            ['%s %s %s' % 
-             (lon, lat, depth) for (lon, lat), depth in zip(
+            ['%s %s %s' % (lon, lat, depth) for (lon, lat), depth in zip(
              shape.points[idx_start: idx_end],
-             shape.z[idx_start: idx_end]
-             )
-            ]
+             shape.z[idx_start: idx_end])
+             ]
         )
         edges.append(wkt)
 
@@ -645,6 +723,7 @@ def create_complex_fault_geometry(shape, geometry_params):
 
     return geo
 
+
 def create_planar_surfaces_geometry(shape, pstrikes_params, pdips_params):
     """
     Create list of nrmlib planar surfaces.
@@ -656,8 +735,9 @@ def create_planar_surfaces_geometry(shape, pstrikes_params, pdips_params):
         # for visualization pourposes. Pyshp closes polygons automatically
         # so we need to extract only the 4 vertices and skip the last one.
         idx_end = (shape.parts[i + 1] - 1) if i + 1 < len(shape.parts) else -1
-        surface = [Point(lon, lat, depth) for (lon, lat), depth in \
-            zip(shape.points[idx_start: idx_end],shape.z[idx_start: idx_end])]
+        surface = [Point(lon, lat, depth) for (lon, lat), depth in
+                   zip(shape.points[idx_start: idx_end],
+                       shape.z[idx_start: idx_end])]
         surfaces.append(surface)
 
     psurfs = []
@@ -670,14 +750,15 @@ def create_planar_surfaces_geometry(shape, pstrikes_params, pdips_params):
 
     return psurfs
 
+
 def create_nrml_source(shape, record, fields):
     """
     Create nrmllib source depending on type.
     """
     (src_base_params, geometry_params, mfd_params, rate_params,
-            strike_params, dip_params, rake_params, npw_params, hd_params,
-            hdw_params, pstrike_params, pdips_params) = \
-                extract_record_values(record, fields)
+     strike_params, dip_params, rake_params, npw_params, hd_params,
+     hdw_params, pstrike_params, pdips_params) = extract_record_values(record,
+                                                                       fields)
 
     params = src_base_params
 
@@ -730,11 +811,12 @@ def create_nrml_source(shape, record, fields):
                 )
         else:
             raise ValueError('Geometry type not recognized for '
-                'characteristic source')
+                             'characteristic source')
         return CharacteristicSource(**params)
 
     else:
-        raise ValueError('Source type %s not recognized' % src_type)
+        raise ValueError('Source type %s not recognized' % params['src_type'])
+
 
 def shp2nrml(source_models, output_file):
     """
@@ -752,42 +834,48 @@ def shp2nrml(source_models, output_file):
     smw = SourceModelXMLWriter('%s.xml' % output_file)
     smw.serialize(srcm)
 
+
 def set_up_arg_parser():
     """
     Can run as executable. To do so, set up the command line parser
     """
-    parser = argparse.ArgumentParser(
-        description='Convert NRML source model file to ESRI Shapefile(s) and '
-            'vice versa.\n\nTo convert from NRML to shapefile type: '
-            '\npython source_model_converter.py '
-            '--input-nrml-file PATH_TO_SOURCE_MODEL_NRML_FILE. '
-            '--output-file PATH_TO_OUTPUT_FILE'
-            '\n\nFor each type of source geometry defined in the NRML file '
-            '(point, area, simple fault, complex fault, planar) a separate '
-            'shapefile is created. Each shapefile is differentiated by a specific '
-            'ending (\'_point\', \'_area\', \'_simple\', \'_complex\', \'_planar\')'
-            '\n\nTo convert from shapefile(s) to NRML type: '
-            '\npython source_model_converter.py '
-            '--input-shp-files PATH_TO_SOURCE_MODEL_SHP_FILE1 '
-            'PATH_TO_SOURCE_MODEL_SHP_FILE2 ...'
-            '--output-file PATH_TO_OUTPUT_FILE'
-            '\n\nSources defined in different shapefile are saved'
-            ' into a single NRML file.',
-            add_help=False, formatter_class=RawTextHelpFormatter)
+
+    description = ('Convert NRML source model file to ESRI Shapefile(s) and '
+                   'vice versa.\n\nTo convert from NRML to shapefile type: '
+                   '\npython source_model_converter.py '
+                   '--input-nrml-file PATH_TO_SOURCE_MODEL_NRML_FILE. '
+                   '--output-file PATH_TO_OUTPUT_FILE'
+                   '\n\nFor each type of source geometry defined in the NRML '
+                   'file (point, area, simple fault, complex fault, planar) '
+                   'a separate shapefile is created. Each shapefile is '
+                   'differentiated by a specific ending'
+                   '(\'_point\', \'_area\', \'_simple\', \'_complex\', '
+                   '\'_planar\')'
+                   '\n\nTo convert from shapefile(s) to NRML type: '
+                   '\npython source_model_converter.py '
+                   '--input-shp-files PATH_TO_SOURCE_MODEL_SHP_FILE1 '
+                   'PATH_TO_SOURCE_MODEL_SHP_FILE2 ...'
+                   '--output-file PATH_TO_OUTPUT_FILE'
+                   '\n\nSources defined in different shapefile are saved'
+                   ' into a single NRML file.')
+    parser = argparse.ArgumentParser(description=description,
+                                     add_help=False,
+                                     formatter_class=RawTextHelpFormatter)
     flags = parser.add_argument_group('flag arguments')
     flags.add_argument('-h', '--help', action='help')
-    flags.add_argument('--output-file', help='path to output file (root name only)',
-    default=None,
-    required=True)
+    flags.add_argument('--output-file', help='path to output file (root' +
+                       ' name only)',
+                       default=None,
+                       required=True)
     group = flags.add_mutually_exclusive_group()
     group.add_argument('--input-nrml-file',
-        help='path to source model NRML file',
-        default=None)
+                       help='path to source model NRML file',
+                       default=None)
     group.add_argument('--input-shp-files',
-        help='path(s) to source model ESRI shapefile(s) (file root only - no extension)',
-        nargs='+',
-        default=None)
-    
+                       help='path(s) to source model ESRI shapefile(s)' +
+                            '(file root only - no extension)',
+                       nargs='+',
+                       default=None)
 
     return parser
 
