@@ -50,7 +50,7 @@ from collections import OrderedDict
 
 from openquake.hazardlib.geo.surface.simple_fault import SimpleFaultSurface
 
-import openquake.engine.input.source as sss
+import openquake.commonlib.source as sss
 
 from openquake.nrmllib.hazard.parsers import SourceModelParser
 from openquake.nrmllib.hazard.writers import SourceModelXMLWriter
@@ -396,16 +396,19 @@ def set_simple_fault_3D_geometry(w, src):
         NRML source object
     """
     # Create an oq object for the source
-    hc = HC(1., 10., 0.1, 50.)
-    converter = sss.NrmlHazardlibConverter(hc)
-    src_oq = converter._nrml_source_to_hazardlib(src)
+    converter = sss.NrmlHazardlibConverter(
+        investigation_time=50.,
+        rupture_mesh_spacing=1.,
+        width_of_mfd_bin=0.1,
+        area_source_discretization=10.
+    )
+    src_oq = converter(src)
     lon, lat = \
         SimpleFaultSurface.get_surface_vertexes(src_oq.fault_trace,
                                                 src_oq.upper_seismogenic_depth,
                                                 src_oq.lower_seismogenic_depth,
                                                 src_oq.dip)
     # Reorder the vertexes
-    print lon, lat
     lons = numpy.concatenate([lon[::2], numpy.flipud(lon[1::2])])
     lats = numpy.concatenate([lat[::2], numpy.flipud(lat[1::2])])
     depths = numpy.concatenate([numpy.ones_like(lon[::2]) *
