@@ -51,6 +51,7 @@ import csv
 import argparse
 import numpy
 from lxml import etree
+from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
 
@@ -184,6 +185,62 @@ def save_gmfs_to_csv(gmf_collection, out_dir):
                 numpy.savetxt(f, values, fmt='%5.2f,%5.2f,%g')
                 f.close()
 
+def save_gmfs_to_netcdf(gmf_collection, out_dir, to_mmi=False, spacing="10k",
+        cleanup=False):
+    """
+    Exports the ground motion fields to NetCDF format
+    """
+    for gmf_set in gmf_collection.gmfss:
+        for imt in gmf_set.gmfs.keys():
+            dir_name = '%s/StochasticEventSet_%s_%s' % \
+                (out_dir, gmf_set.stochasticEventSetId, imt)
+            os.makedirs(dir_name)
+            if to_mmi:
+                if imt in AK2007.keys():
+                    get_mmi = True
+                else:
+                    print "Cannot convert %s to MMI" % imt
+                    get_mmi = False
+            else:
+                get_mmi = False
+
+            map_values = []
+            for rup_id, values in gmf_set.gmfs[imt]:
+                rup_id = rup_id.replace("|","_")
+                rup_id = rup_id.replace("=","")
+
+                print 'saving file for rupture %s' % rup_id
+                if get_mmi:
+                    values[:, 2], sigma = atkinson_kaka_2007_rsa2mmi(
+                        imt, 
+                        values[:, 2])
+                f_stem = '%s/%s' % (dir_name, rup_id)
+
+                f = open(f_stem + ".xyz", 'w')
+                numpy.savetxt(f, values, fmt='%5.2f %5.2f %g')
+                f.close()
+                # Generate GMT xyz2grd string
+                values = numpy.array(values)
+                llon = numpy.min(values[:, 0])
+                ulon = numpy.max(values[:, 0])
+                llat = numpy.min(values[:, 1])
+                ulat = numpy.max(values[:, 1])
+                istring = " -I%s/%s" % (spacing, spacing)
+                rstring = " -R" + "{:.5f}/".format(llon) + \
+                    "{:.5f}/".format(ulon) + "{:.5f}/".format(llat) +\
+                    "{:.5f}".format(ulat)
+                if "SA" in imt:
+                    mod1 = f_stem.replace("(", "\(")
+                    f_stem = mod1.replace(")", "\)")
+                
+                command_string = ("xyz2grd %s -G%s" % (f_stem + ".xyz",
+                                  f_stem + ".NC")) + istring + rstring
+                os.system(command_string)
+    if cleanup:
+        os.system("find . -name '*.xyz' -type f -delete")
+
+
+
 def set_up_arg_parser():
     """
     Can run as executable. To do so, set up the command line parser
@@ -206,7 +263,24 @@ def set_up_arg_parser():
         help='path to output directory (Required, raise an error if it already exists)',
         default=None,
         required=True)
-
+    flags.add_argument('--to-netcdf',
+        help='Converts files to netcdf format for use with GMT/QGis',
+        default=False,
+        required=False)
+    flags.add_argument('--spacing',
+        help="Approximate spacing (km) of interpolated mesh",
+        default="10k",
+        required=False)
+    flags.add_argument('--to-mmi',
+        help="Convert the ground motion values to MMI using the model of "
+             "Atkinson & Kaka (2007) - Note this will only apply to PGA, PGV "
+             "SA(0.3), SA(1.0), SA(2.0)",
+        default=False,
+        required=False)
+    flags.add_argument('--cleanup',
+        help="Removes .xyz files after creation of NetCDF",
+        default=False,
+        required=False)
     return parser
 
 
@@ -221,6 +295,10 @@ if __name__ == "__main__":
         os.makedirs(args.output_dir)
 
         gmfc = parse_gmfc_file(args.input_file)
-        save_gmfs_to_csv(gmfc, args.output_dir)
+        if args.to_netcdf:
+            save_gmfs_to_netcdf(gmfc, args.output_dir, args.to_mmi,
+                args.spacing, args.cleanup)
+        else:
+            save_gmfs_to_csv(gmfc, args.output_dir)
     else:
         parser.print_usage()

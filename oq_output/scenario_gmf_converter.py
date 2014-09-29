@@ -51,6 +51,7 @@ import argparse
 import numpy
 from collections import OrderedDict
 from lxml import etree
+from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
 
@@ -97,6 +98,51 @@ def save_gmfs_to_csv(gmfs, out_dir):
             numpy.savetxt(f, numpy.array(gmf), fmt='%g', delimiter=',')
             f.close()
 
+
+def save_gmfs_to_netcdf(gmfs, out_dir, to_mmi=False, resolution="10k",
+        cleanup=False):
+    """
+    Save ground motion fields to netCDF files for use in GMT and/or QGis
+    """
+    for imt in gmfs.keys():
+        dir_name = '%s/GMFS_%s' % (out_dir, imt)
+        os.makedirs(dir_name)
+        if to_mmi:
+            if imt in AK2007.keys():
+                get_mmi = True
+            else:
+                print "Cannot convert %s to MMI" % imt
+                get_mmi = False
+        else:
+            get_mmi = False
+            
+        for i, gmf in enumerate(gmfs[imt]):
+            f_stem = '%s/gmf_%s' % (dir_name, (i + 1))
+            ogmf = numpy.array(gmf)
+            if get_mmi:
+                ogmf[:, 2], sigma = atkinson_kaka_2007_rsa2mmi(imt, ogmf[:, 2])
+            f = open(f_stem + ".xyz", "w")
+            numpy.savetxt(f, ogmf, fmt="%g", delimiter=" ")
+            f.close()
+            # Generate GMT xyz2grd string
+            llon = numpy.min(ogmf[:, 0])
+            ulon = numpy.max(ogmf[:, 0])
+            llat = numpy.min(ogmf[:, 1])
+            ulat = numpy.max(ogmf[:, 1])
+            istring = " -I%s/%s" % (resolution, resolution)
+            rstring = " -R" + "{:.5f}/".format(llon) + "{:.5f}/".format(ulon) +\
+                "{:.5f}/".format(llat) + "{:.5f}".format(ulat)
+            if "SA" in imt:
+                mod1 = f_stem.replace("(", "\(")
+                f_stem = mod1.replace(")", "\)")
+                
+            command_string = ("xyz2grd %s -G%s" % (f_stem + ".xyz",
+                              f_stem + ".NC")) + istring + rstring
+            os.system(command_string)
+    if cleanup:
+        os.system("find . -name '*.xyz' -type f -delete")
+        
+
 def set_up_arg_parser():
     """
     Can run as executable. To do so, set up the command line parser
@@ -121,6 +167,26 @@ def set_up_arg_parser():
         default=None,
         required=True)
 
+    flags.add_argument('--to-netcdf',
+        help='Converts files to netcdf format for use with GMT/QGis',
+        default=False,
+        required=False)
+    flags.add_argument('--spacing',
+        help="Approximate spacing (km) of interpolated mesh",
+        default="10k",
+        required=False)
+
+    flags.add_argument('--to-mmi',
+        help="Convert the ground motion values to MMI using the model of "
+             "Atkinson & Kaka (2007) - Note this will only apply to PGA, PGV "
+             "SA(0.3), SA(1.0), SA(2.0)",
+        default=False,
+        required=False)
+    flags.add_argument('--cleanup',
+        help="Removes .xyz files after creation of NetCDF",
+        default=False,
+        required=False)
+
     return parser
 
 
@@ -133,8 +199,11 @@ if __name__ == "__main__":
         # create the output directory immediately. Raise an error if
         # it already exists
         os.makedirs(args.output_dir)
-
         gmfc = parse_gmfs_file(args.input_file)
-        save_gmfs_to_csv(gmfc, args.output_dir)
+        if args.to_netcdf:
+            save_gmfs_to_netcdf(gmfc, args.output_dir, args.to_mmi,
+                                args.spacing, args.cleanup)    
+        else:
+            save_gmfs_to_csv(gmfc, args.output_dir)
     else:
         parser.print_usage()
