@@ -98,9 +98,19 @@ def save_gmfs_to_csv(gmfs, out_dir):
             numpy.savetxt(f, numpy.array(gmf), fmt='%g', delimiter=',')
             f.close()
 
+def magic_flipud(values, llat, ulat):
+    """
+
+    """
+    dlat = ulat - llat
+    lat_diff = values[:, 1] - llat
+    new_lat = ulat - lat_diff
+    values[:, 1] = new_lat
+    return values
+
 
 def save_gmfs_to_netcdf(gmfs, out_dir, to_mmi=False, resolution="10k",
-        cleanup=False):
+        cleanup=False, magic=False):
     """
     Save ground motion fields to netCDF files for use in GMT and/or QGis
     """
@@ -119,6 +129,10 @@ def save_gmfs_to_netcdf(gmfs, out_dir, to_mmi=False, resolution="10k",
         for i, gmf in enumerate(gmfs[imt]):
             f_stem = '%s/gmf_%s' % (dir_name, (i + 1))
             ogmf = numpy.array(gmf)
+            if magic:
+                ogmf = magic_flipud(ogmf,
+                                    numpy.min(ogmf[:, 1]),
+                                    numpy.max(ogmf[:, 1]))
             if get_mmi:
                 ogmf[:, 2], sigma = atkinson_kaka_2007_rsa2mmi(imt, ogmf[:, 2])
             f = open(f_stem + ".xyz", "w")
@@ -187,6 +201,11 @@ def set_up_arg_parser():
         default=False,
         required=False)
 
+    flags.add_argument('--magic',
+        help="Flips raster in vertical",
+        default=False,
+        required=False)
+
     return parser
 
 
@@ -202,7 +221,7 @@ if __name__ == "__main__":
         gmfc = parse_gmfs_file(args.input_file)
         if args.to_netcdf:
             save_gmfs_to_netcdf(gmfc, args.output_dir, args.to_mmi,
-                                args.spacing, args.cleanup)    
+                                args.spacing, args.cleanup, args.magic)    
         else:
             save_gmfs_to_csv(gmfc, args.output_dir)
     else:
