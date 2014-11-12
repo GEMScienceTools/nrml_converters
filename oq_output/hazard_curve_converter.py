@@ -45,6 +45,7 @@ import os
 import argparse
 import numpy
 from lxml import etree
+import matplotlib.pyplot as plt
 
 from openquake.nrmllib.hazard.parsers import HazardCurveXMLParser
 
@@ -76,7 +77,41 @@ def _set_header(hcm):
 
     return header
 
-def save_hazard_curves_to_csv(nrml__hazard_curves_file, file_name_root):
+def plot_hazard_curve(filename_root, curves, hcm):
+    """
+    Exports the hazard curves to a set of pdf files
+    """
+    os.mkdir(filename_root)
+    if ("PGA" in hcm.metadata["imt"]) or ("SA" in hcm.metadata["imt"]):
+        imt_units = "g"
+    else:
+        imt_units = "cm/s"
+    num_curves = numpy.shape(curves)[0]
+    for iloc, row in enumerate(curves):
+        print "Plotting curve %d of %d" % (iloc, num_curves)
+        fig = plt.figure(figsize=(7, 5))
+        fig.set_tight_layout(True)
+        plt.loglog(hcm.metadata["imls"], row[2:], 'bo-', linewidth=2.0)
+        plt.xlabel("%s (%s)" %(hcm.metadata["imt"], imt_units), fontsize=14)
+        plt.ylabel("Probability of Being Exceeded in %s years" %
+                   hcm.metadata["investigation_time"], fontsize=14)
+        if row[0] < 0.0:
+            long_ind = "W"
+        else:
+            long_ind = "E"
+        if row[1] < 0.0:
+            lat_ind = "S"
+        else:
+            lat_ind = "N"
+        plt.title("Location: %12.6f %s, %12.6f %s" %(row[0], long_ind,
+                                                     row[1], lat_ind))
+        output_file = os.path.join(filename_root,
+            "HazCurve_{:.5f}{:s}_{:.5f}{:s}.pdf".format(row[0], long_ind,
+            row[1], lat_ind))
+        plt.savefig(output_file, dpi=300, format="pdf", papertype="a4")
+
+def save_hazard_curves_to_csv(nrml__hazard_curves_file, file_name_root,
+    plot_curves=False):
     """
     Read hazard curves in `nrml__hazard_curves_file` and save to .csv file
     with root name `file_name_root`
@@ -94,6 +129,10 @@ def save_hazard_curves_to_csv(nrml__hazard_curves_file, file_name_root):
     f.write(header+'\n')
     numpy.savetxt(f, curves, fmt='%g', delimiter=',')
     f.close()
+    if plot_curves:
+        plot_hazard_curve(file_name_root, curves, hcm)
+
+
 
 def set_up_arg_parser():
     """
@@ -115,6 +154,10 @@ def set_up_arg_parser():
                              ' (Optional, default is root of NRML file)',
                         default=None
                        )
+    flags.add_argument('--plot-curves',
+                       help="Plot the hazard curves to pdf (True) or not "
+                       "(False) - may take time for many hazard curves",
+                       default=False)
     return parser
 
 
@@ -128,6 +171,8 @@ if __name__ == "__main__":
             os.path.splitext(parser.parse_args().input_file)[0] \
             if args.output_file is None else args.output_file
 
-        save_hazard_curves_to_csv(args.input_file, output_file)
+        save_hazard_curves_to_csv(args.input_file,
+                                  output_file,
+                                  args.plot_curves)
     else:
         parser.print_usage()
