@@ -46,6 +46,7 @@ import os
 import argparse
 import numpy
 from lxml import etree
+import matplotlib.pyplot as plt
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
 GML='{http://www.opengis.net/gml}'
@@ -83,7 +84,44 @@ def parse_nrml_uhs_curves(nrml_uhs_map):
 
     return metadata, periods, numpy.array(values)
 
-def save_uhs_to_csv(nrml_uhs_file, file_name_root):
+def plot_uhs(file_name_root, uhs, periods, metadata):
+    """
+    Takes the UHS data and produces a set of curves as pdf images in the
+    output folder
+    """
+    os.mkdir(file_name_root)
+    num_curves = numpy.shape(uhs)[0]
+    if not metadata["statistics"]:
+        metadata["statistics"] = ""
+    for iloc, row in enumerate(uhs):
+        print "Plotting curve %d of %d" % (iloc + 1, num_curves)
+        fig = plt.figure(figsize=(7, 5))
+        fig.set_tight_layout(True)
+        plt.plot(periods, row[2:], 'bo-', linewidth=2.0)
+        plt.xlabel("Period (s)", fontsize=14)
+        plt.ylabel("Spectral Acceleration (g)", fontsize=14)
+        plt.grid(b=True, color='0.66', linestyle="--")
+        if row[0] < 0.0:
+            long_ind = "W"
+        else:
+            long_ind = "E"
+        if row[1] < 0.0:
+            lat_ind = "S"
+        else:
+            lat_ind = "N"
+        title_string_upper = "{:s} UHS with a {:s} PoE in {:s} Years\n".format(
+             metadata["statistics"],
+             metadata["poe"],
+             metadata["investigation_time"])
+        title_string_lower = "Location: {:.6f}{:s}, {:.6f}{:s}".format(
+            row[0], long_ind, row[1], lat_ind)
+        plt.title(title_string_upper + title_string_lower, fontsize=16)
+        output_file = os.path.join(file_name_root,
+            "UHS_{:.5f}{:s}_{:.5f}{:s}.pdf".format(row[0], long_ind,
+            row[1], lat_ind))
+        plt.savefig(output_file, dpi=300, format="pdf", papertype="a4")
+
+def save_uhs_to_csv(nrml_uhs_file, file_name_root, plot_spectra=False):
     """
     Read hazard map in `nrml__hazard_map_file` and save to .csv file
     with root name `file_name_root`
@@ -105,6 +143,8 @@ def save_uhs_to_csv(nrml_uhs_file, file_name_root):
     f.write(header+'\n')
     numpy.savetxt(f, values, fmt='%g', delimiter=',')
     f.close()
+    if plot_spectra:
+        plot_uhs(file_name_root, values, periods, metadata)
 
 def set_up_arg_parser():
     """
@@ -126,6 +166,11 @@ def set_up_arg_parser():
                              ' (Optional, default is root of NRML file)',
                         default=None
                        )
+    flags.add_argument('--plot-spectra',
+                       help="Plot the uniform hazard spectra to pdf (True) " 
+                       "or not (False) - may take time for many hazard curves",
+                       default=False)
+
     return parser
 
 
@@ -139,7 +184,6 @@ if __name__ == "__main__":
             os.path.splitext(parser.parse_args().input_file)[0] \
             if args.output_file is None else args.output_file
 
-        save_uhs_to_csv(args.input_file, output_file)
+        save_uhs_to_csv(args.input_file, output_file, args.plot_spectra)
     else:
         parser.print_usage()
-
