@@ -37,4 +37,8 @@ nosetests.xml
 .pydevproject
 
 # Vim
-.swp
+*.swp
+
+# GMT
+.gmtcommands4
+.gmtdefaults4
