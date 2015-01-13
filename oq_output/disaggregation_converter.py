@@ -46,9 +46,11 @@ using GMT
 import os
 import argparse
 import numpy
+import utils
 from lxml import etree
 from collections import OrderedDict
 from subprocess import call
+
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
 
@@ -140,7 +142,10 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
         if len(axis) == 1:
             values = numpy.array([axis[0], matrix.flatten()]).T
         else:
-            grids = numpy.meshgrid(*axis, indexing='ij')
+            try:
+                grids = numpy.meshgrid(*axis, indexing='ij')
+            except:
+                grids = utils.meshgrid(*axis, indexing='ij')
             values = [g.flatten() for g in grids]
             values.append(matrix.flatten())
             values = numpy.array(values).T

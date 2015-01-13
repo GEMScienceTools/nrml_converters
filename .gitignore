@@ -32,9 +32,13 @@ nosetests.xml
 *.mo
 
 # Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
+*.mr.developer.cfg
+*.project
+*.pydevproject
 
 # Vim
-.swp
+*.swp
+
+# GMT
+.gmtcommands4
+.gmtdefaults4
