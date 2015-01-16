@@ -51,6 +51,7 @@ try:
     from openquake.nrmllib.hazard.parsers import HazardCurveXMLParser
 except:
     from openquake.nrmllib.hazard.parsers import HazardCurveParser
+    HazardCurveXMLParser = HazardCurveParser
 
 
 def _set_curves_matrix(hcm):
