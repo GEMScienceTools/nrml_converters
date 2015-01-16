@@ -114,7 +114,7 @@ def plot_uhs(file_name_root, uhs, periods, metadata):
              metadata["poe"],
              metadata["investigation_time"])
         title_string_lower = "Location: {:.6f}{:s}, {:.6f}{:s}".format(
-            row[0], long_ind, row[1], lat_ind)
+            numpy.abs(row[0]), long_ind, numpy.abs(row[1]), lat_ind)
         plt.title(title_string_upper + title_string_lower, fontsize=16)
         output_file = os.path.join(file_name_root,
             "UHS_{:.5f}{:s}_{:.5f}{:s}.pdf".format(row[0], long_ind,

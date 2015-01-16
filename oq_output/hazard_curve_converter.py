@@ -47,7 +47,10 @@ import numpy
 from lxml import etree
 import matplotlib.pyplot as plt
 
-from openquake.nrmllib.hazard.parsers import HazardCurveXMLParser
+try:
+    from openquake.nrmllib.hazard.parsers import HazardCurveXMLParser
+except:
+    from openquake.nrmllib.hazard.parsers import HazardCurveParser
 
 
 def _set_curves_matrix(hcm):
@@ -103,8 +106,8 @@ def plot_hazard_curve(filename_root, curves, hcm):
             lat_ind = "S"
         else:
             lat_ind = "N"
-        plt.title("Location: %12.6f %s, %12.6f %s" %(row[0], long_ind,
-                                                     row[1], lat_ind))
+        plt.title("Location: %12.6f %s, %12.6f %s" %(
+            numpy.abs(row[0]), long_ind, numpy.abs(row[1]), lat_ind))
         output_file = os.path.join(filename_root,
             "HazCurve_{:.5f}{:s}_{:.5f}{:s}.pdf".format(row[0], long_ind,
             row[1], lat_ind))
