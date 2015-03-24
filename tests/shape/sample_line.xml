@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<nrml xmlns:gml="http://www.opengis.net/gml" xmlns="http://openquake.org/xmlns/nrml/0.4">
+  <sourceModel>
+    <simpleFaultSource id="1" name="name_of_sample_line" tectonicRegion="Stable Continental Crust">
+      <simpleFaultGeometry>
+        <gml:LineString>
+          <gml:posList>-79.2138992734 -11.5067127772 -74.330127759 -16.087949773 -73.9411548065 -21.317475023 -71.5208786577 -26.460561839 -71.9962900441 -32.3383753431 -69.3599178107 -35.9687895662</gml:posList>
+        </gml:LineString>
+        <dip>45</dip>
+        <upperSeismoDepth>0</upperSeismoDepth>
+        <lowerSeismoDepth>100</lowerSeismoDepth>
+      </simpleFaultGeometry>
+      <magScaleRel>WC1994</magScaleRel>
+      <ruptAspectRatio>1.0</ruptAspectRatio>
+      <truncGutenbergRichterMFD aValue="0" bValue="1" minMag="3" maxMag="6"/>
+      <rake>-90</rake>
+    </simpleFaultSource>
+  </sourceModel>
+</nrml>

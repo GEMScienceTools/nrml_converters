@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<nrml xmlns:gml="http://www.opengis.net/gml" xmlns="http://openquake.org/xmlns/nrml/0.4">
+  <sourceModel>
+    <areaSource id="1" name="name_of_sample_area" tectonicRegion="Stable Continental Crust">
+      <areaGeometry>
+        <gml:Polygon>
+          <gml:exterior>
+            <gml:LinearRing>
+              <gml:posList>-75.3241697486 -17.2116494135 -76.8800615585 -19.8480216469 -74.5462238437 -22.7004899651 -69.4031370276 -19.1997333928 -68.9277256412 -27.1088500931 -73.4657434201 -29.9613184113 -79.9486259614 -27.4546038287 -78.1334188498 -24.3428202089 -79.5596530089 -22.5276130973 -79.6028722258 -17.2548686304</gml:posList>
+            </gml:LinearRing>
+          </gml:exterior>
+        </gml:Polygon>
+        <upperSeismoDepth>0</upperSeismoDepth>
+        <lowerSeismoDepth>100</lowerSeismoDepth>
+      </areaGeometry>
+      <magScaleRel>WC1994</magScaleRel>
+      <ruptAspectRatio>1.0</ruptAspectRatio>
+      <truncGutenbergRichterMFD aValue="0" bValue="1" minMag="3" maxMag="6"/>
+      <nodalPlaneDist>
+        <nodalPlane probability="1.0" strike="0" dip="45" rake="90"/>
+      </nodalPlaneDist>
+      <hypoDepthDist>
+        <hypoDepth probability="1.0" depth="50.0"/>
+      </hypoDepthDist>
+    </areaSource>
+  </sourceModel>
+</nrml>

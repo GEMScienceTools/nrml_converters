@@ -754,7 +754,7 @@ def create_planar_surfaces_geometry(shape, pstrikes_params, pdips_params):
     return psurfs
 
 
-def create_nrml_source(shape, record, fields):
+def create_nrml_source(shape, record, fields, extract_geometry_only=False):
     """
     Create nrmllib source depending on type.
     """
@@ -763,6 +763,39 @@ def create_nrml_source(shape, record, fields):
      hdw_params, pstrike_params, pdips_params) = extract_record_values(record,
                                                                        fields)
 
+    if extract_geometry_only:
+        # we'll create some fake 'mandatory' parameters
+        src_base_params['trt'] = "Stable Continental Crust"
+        src_base_params['mag_scale_rel'] = "WC1994"
+        src_base_params['rupt_aspect_ratio'] = 1.0
+        
+        geometry_params['upper_seismo_depth'] = 0
+        geometry_params['lower_seismo_depth'] = 100
+        
+        mfd_params['a_val'] = 0
+        mfd_params['b_val'] = 1
+        mfd_params['min_mag'] = 3
+        mfd_params['max_mag'] = 6
+        
+        strike_params['strike1'] = 0
+        dip_params['dip1'] = 45
+        rake_params['rake1'] = 90
+        npw_params['np_weight1'] = 1.0
+
+        hd_params['hd1'] = 50.0
+        hdw_params['hd_weight1'] = 1.0
+
+        if shape.shapeType == shapefile.POINT:
+            record.append("PointSource")
+        elif shape.shapeType == shapefile.POLYGON:
+            record.append("AreaSource")
+        else:
+            # probably a wrong assumption
+            record.append("SimpleFaultSource")
+            # probably a wrong assumption
+            geometry_params['dip'] = 45
+            src_base_params['rake'] = -90
+    
     params = src_base_params
 
     params['mfd'] = create_mfd(mfd_params, rate_params)
@@ -821,7 +854,7 @@ def create_nrml_source(shape, record, fields):
         raise ValueError('Source type %s not recognized' % params['src_type'])
 
 
-def shp2nrml(source_models, output_file):
+def shp2nrml(source_models, output_file, extract_geometry_only=False):
     """
     Convert source model ESRI shapefiles to NRML.
     """
@@ -830,7 +863,7 @@ def shp2nrml(source_models, output_file):
         sf = shapefile.Reader(source_model)
 
         for shape, record in zip(sf.shapes(), sf.records()):
-            srcs.append(create_nrml_source(shape, record, sf.fields))
+            srcs.append(create_nrml_source(shape, record, sf.fields, extract_geometry_only))
 
     srcm = SourceModel(sources=srcs)
 
@@ -870,6 +903,10 @@ def set_up_arg_parser():
                        ' name only)',
                        default=None,
                        required=True)
+    flags.add_argument('--extract-geometry-only', help='extract geometry from shapefiles and add _fake_ values to other mandatory fields',
+                       action="store_true",
+                       default=False,
+                       required=False)
     group = flags.add_mutually_exclusive_group()
     group.add_argument('--input-nrml-file',
                        help='path to source model NRML file',
@@ -890,6 +927,6 @@ if __name__ == "__main__":
     if args.input_nrml_file:
         nrml2shp(args.input_nrml_file, args.output_file)
     elif args.input_shp_files:
-        shp2nrml(args.input_shp_files, args.output_file)
+        shp2nrml(args.input_shp_files, args.output_file, args.extract_geometry_only)
     else:
         parser.print_usage()

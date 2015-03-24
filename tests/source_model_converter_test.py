@@ -15,6 +15,7 @@ from openquake.nrmllib.models import PointSource, AreaSource, SimpleFaultSource,
     ComplexFaultGeometry, SimpleFaultGeometry, PlanarSurface
 
 DATA_PATH = '%s/data/' % os.path.dirname(__file__)
+SHAPE_PATH = '%s/shape/' % os.path.dirname(__file__)
 
 class TestSourceModelConverter(unittest.TestCase):
 
@@ -266,3 +267,38 @@ class TestSourceModelConverter(unittest.TestCase):
             '%ssource_model_complete.xml' % DATA_PATH,
             '%stest.xml' % DATA_PATH
         )
+
+
+    def test_point_geometry_extraction(self):
+        # check that by converting shape geometry to xml file 
+        # we get the expected file
+        shp2nrml(['%ssample_point_geometry.shp' % SHAPE_PATH], '%stest' % DATA_PATH, 
+                 extract_geometry_only=True)
+
+        self.assert_source_model_equals(
+            '%ssample_point.xml' % SHAPE_PATH,
+            '%stest.xml' % DATA_PATH
+        )
+    
+    def test_area_geometry_extraction(self):
+        # check that by converting shape geometry to xml file 
+        # we get the expected file
+        shp2nrml(['%ssample_area_geometry.shp' % SHAPE_PATH], '%stest' % DATA_PATH, 
+                 extract_geometry_only=True)
+
+        self.assert_source_model_equals(
+            '%ssample_area.xml' % SHAPE_PATH,
+            '%stest.xml' % DATA_PATH
+        )
+
+    def test_line_geometry_extraction(self):
+        # check that by converting shape geometry to xml file 
+        # we get the expected file
+        shp2nrml(['%ssample_line_geometry.shp' % SHAPE_PATH], '%stest' % DATA_PATH, 
+                 extract_geometry_only=True)
+
+        self.assert_source_model_equals(
+            '%ssample_line.xml' % SHAPE_PATH,
+            '%stest.xml' % DATA_PATH
+        )
+
