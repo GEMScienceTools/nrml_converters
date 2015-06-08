@@ -1,7 +1,6 @@
 import os
 import unittest
 import numpy
-from lxml import etree
 from shapely import wkt
 from shapely.geometry.polygon import Polygon
 from glob import glob
@@ -10,11 +9,13 @@ from subprocess import call
 from oq_input.source_model_converter import nrml2shp, shp2nrml
 
 from openquake.nrmllib.hazard.parsers import SourceModelParser
-from openquake.nrmllib.models import PointSource, AreaSource, SimpleFaultSource, \
-    ComplexFaultSource, CharacteristicSource, IncrementalMFD, TGRMFD, \
-    ComplexFaultGeometry, SimpleFaultGeometry, PlanarSurface
+from openquake.nrmllib.models import PointSource, AreaSource, \
+    SimpleFaultSource, ComplexFaultSource, CharacteristicSource, \
+    IncrementalMFD, TGRMFD, ComplexFaultGeometry, SimpleFaultGeometry, \
+    PlanarSurface
 
 DATA_PATH = '%s/data/' % os.path.dirname(__file__)
+
 
 class TestSourceModelConverter(unittest.TestCase):
 
@@ -67,13 +68,13 @@ class TestSourceModelConverter(unittest.TestCase):
         for src1, src2 in zip(srcs1, srcs2):
             assert isinstance(
                 src1,
-                (PointSource, AreaSource, SimpleFaultSource, ComplexFaultSource,
-                 CharacteristicSource)
+                (PointSource, AreaSource, SimpleFaultSource,
+                 ComplexFaultSource, CharacteristicSource)
             )
             assert isinstance(
                 src2,
-                (PointSource, AreaSource, SimpleFaultSource, ComplexFaultSource,
-                 CharacteristicSource)
+                (PointSource, AreaSource, SimpleFaultSource,
+                 ComplexFaultSource, CharacteristicSource)
             )
 
             self.assertEqual(src1.__class__, src2.__class__)
@@ -83,7 +84,8 @@ class TestSourceModelConverter(unittest.TestCase):
 
             if not isinstance(src1, CharacteristicSource):
                 self.assertEqual(src1.mag_scale_rel, src2.mag_scale_rel)
-                self.assertEqual(src1.rupt_aspect_ratio, src2.rupt_aspect_ratio)
+                self.assertEqual(src1.rupt_aspect_ratio,
+                                 src2.rupt_aspect_ratio)
 
             self.assertEqual(src1.mfd.__class__, src2.mfd.__class__)
             if isinstance(src1.mfd, IncrementalMFD):
@@ -96,7 +98,8 @@ class TestSourceModelConverter(unittest.TestCase):
                 self.assertEqual(src1.mfd.min_mag, src2.mfd.min_mag)
                 self.assertEqual(src1.mfd.max_mag, src2.mfd.max_mag)
             else:
-                raise ValueError('MFD class %s not recognized' % mfd.__class__)
+                raise ValueError(
+                    'MFD class %s not recognized' % src1.mfd.__class__)
 
             # this covers both the case of point and area sources
             if isinstance(src1, PointSource):
@@ -111,23 +114,24 @@ class TestSourceModelConverter(unittest.TestCase):
                     src1.geometry.lower_seismo_depth,
                     src2.geometry.lower_seismo_depth
                 )
-                for np1, np2 in \
-                    zip(src1.nodal_plane_dist, src2.nodal_plane_dist):
+                for np1, np2 in zip(
+                        src1.nodal_plane_dist, src2.nodal_plane_dist):
                     self.assertEqual(np1.probability, np2.probability)
                     self.assertEqual(np1.strike, np2.strike)
                     self.assertEqual(np1.dip, np2.dip)
                     self.assertEqual(np1.rake, np2.rake)
-                for hd1, hd2 in zip(src1.hypo_depth_dist, src2.hypo_depth_dist):
+                for hd1, hd2 in zip(
+                        src1.hypo_depth_dist, src2.hypo_depth_dist):
                     self.assertEqual(hd1.probability, hd2.probability)
                     self.assertEqual(hd1.depth, hd2.depth)
             # first we check complex fault
             elif isinstance(src1, ComplexFaultSource) or \
                 (isinstance(src1, CharacteristicSource) and
                  isinstance(src1.surface, ComplexFaultGeometry)):
-                geo1 = src1.geometry if getattr(src1, 'geometry', None) \
-                       else src1.surface
-                geo2 = src2.geometry if getattr(src2, 'geometry', None) \
-                       else src2.surface
+                geo1 = (src1.geometry if getattr(src1, 'geometry', None)
+                        else src1.surface)
+                geo2 = (src2.geometry if getattr(src2, 'geometry', None)
+                        else src2.surface)
                 self.assert_coordinates_equal(
                     geo1.top_edge_wkt,
                     geo2.top_edge_wkt
@@ -140,25 +144,24 @@ class TestSourceModelConverter(unittest.TestCase):
                     len(geo1.int_edges),
                     len(geo2.int_edges)
                 )
-                for edge1, edge2 in \
-                    zip(geo1.int_edges, geo2.int_edges):
+                for edge1, edge2 in zip(geo1.int_edges, geo2.int_edges):
                     self.assert_coordinates_equal(edge1, edge2)
                 self.assertEqual(src1.rake, src2.rake)
             # then simple fault
             elif isinstance(src1, SimpleFaultSource) or\
                 (isinstance(src1, CharacteristicSource) and
                  isinstance(src1.surface, SimpleFaultGeometry)):
-                geo1 = src1.geometry if getattr(src1, 'geometry', None) \
-                       else src1.surface
-                geo2 = src2.geometry if getattr(src2, 'geometry', None) \
-                       else src2.surface
+                geo1 = (src1.geometry if getattr(src1, 'geometry', None)
+                        else src1.surface)
+                geo2 = (src2.geometry if getattr(src2, 'geometry', None)
+                        else src2.surface)
                 self.assert_coordinates_equal(
                     geo1.wkt,
                     geo2.wkt
                 )
                 self.assertEqual(geo1.dip, geo2.dip)
                 self.assertEqual(
-                    geo1.upper_seismo_depth, 
+                    geo1.upper_seismo_depth,
                     geo2.upper_seismo_depth
                 )
                 self.assertEqual(
@@ -167,29 +170,41 @@ class TestSourceModelConverter(unittest.TestCase):
                 )
                 self.assertEqual(src1.rake, src2.rake)
             # then CharacteristicSource with list of PlanarSurface
-            elif isinstance(src1, CharacteristicSource) and \
-                isinstance(src1.surface, list):
+            elif isinstance(src1, CharacteristicSource) and isinstance(
+                    src1.surface, list):
                 for surf1, surf2 in zip(src1.surface, src2.surface):
                     assert isinstance(surf1, PlanarSurface)
                     assert isinstance(surf2, PlanarSurface)
                     self.assertEqual(surf1.strike, surf2.strike)
                     self.assertEqual(surf1.dip, surf2.dip)
                     # top_left
-                    self.assertEqual(surf1.top_left.longitude, surf2.top_left.longitude)
-                    self.assertEqual(surf1.top_left.latitude, surf2.top_left.latitude)
-                    self.assertEqual(surf1.top_left.depth, surf2.top_left.depth)
+                    self.assertEqual(surf1.top_left.longitude,
+                                     surf2.top_left.longitude)
+                    self.assertEqual(surf1.top_left.latitude,
+                                     surf2.top_left.latitude)
+                    self.assertEqual(surf1.top_left.depth,
+                                     surf2.top_left.depth)
                     # top_right
-                    self.assertEqual(surf1.top_right.longitude, surf2.top_right.longitude)
-                    self.assertEqual(surf1.top_right.latitude, surf2.top_right.latitude)
-                    self.assertEqual(surf1.top_right.depth, surf2.top_right.depth)
+                    self.assertEqual(surf1.top_right.longitude,
+                                     surf2.top_right.longitude)
+                    self.assertEqual(surf1.top_right.latitude,
+                                     surf2.top_right.latitude)
+                    self.assertEqual(surf1.top_right.depth,
+                                     surf2.top_right.depth)
                     # bottom_left
-                    self.assertEqual(surf1.bottom_left.longitude, surf2.bottom_left.longitude)
-                    self.assertEqual(surf1.bottom_left.latitude, surf2.bottom_left.latitude)
-                    self.assertEqual(surf1.bottom_left.depth, surf2.bottom_left.depth)
+                    self.assertEqual(surf1.bottom_left.longitude,
+                                     surf2.bottom_left.longitude)
+                    self.assertEqual(surf1.bottom_left.latitude,
+                                     surf2.bottom_left.latitude)
+                    self.assertEqual(surf1.bottom_left.depth,
+                                     surf2.bottom_left.depth)
                     # bottom_right
-                    self.assertEqual(surf1.bottom_right.longitude, surf2.bottom_right.longitude)
-                    self.assertEqual(surf1.bottom_right.latitude, surf2.bottom_right.latitude)
-                    self.assertEqual(surf1.bottom_right.depth, surf2.bottom_right.depth)
+                    self.assertEqual(surf1.bottom_right.longitude,
+                                     surf2.bottom_right.longitude)
+                    self.assertEqual(surf1.bottom_right.latitude,
+                                     surf2.bottom_right.latitude)
+                    self.assertEqual(surf1.bottom_right.depth,
+                                     surf2.bottom_right.depth)
             else:
                 raise ValueError(
                     'Source class %s not recognized' % src1.__class__
@@ -253,7 +268,8 @@ class TestSourceModelConverter(unittest.TestCase):
     def test_full_model(self):
         # check that by converting original xml file to shapefile
         # and then converting back to xml, we get the same file
-        nrml2shp('%ssource_model_complete.xml' % DATA_PATH, '%stest' % DATA_PATH)
+        nrml2shp('%ssource_model_complete.xml' % DATA_PATH,
+                 '%stest' % DATA_PATH)
         shp2nrml([
             '%stest_area' % DATA_PATH,
             '%stest_complex' % DATA_PATH,
