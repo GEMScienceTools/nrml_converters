@@ -46,7 +46,6 @@ import numpy as np
 
 BASEPATH = os.path.join(os.path.dirname(__file__), os.path.pardir, "oq_input")
 
-
 class SiteModelConverterTestCase(unittest.TestCase):
     """
     Round trip test for the Site Model converter
@@ -117,7 +116,49 @@ class SiteModelConverterTestCase(unittest.TestCase):
         subprocess.call(["rm", "dummy_site2.xml"])
 
 
-class SourceModelShapefileConverterTestCase
+class SourceModelShapefileConverterTestCase(unittest.TestCase):
+    """
+    Simple conversion test for the Source Model to shapefile converter
+    - more tests will follow
+    """
+    def setUp(self):
+        self.prog = os.path.join(BASEPATH, "source_model_converter.py")
+        self.input_file = os.path.join(os.path.dirname(__file__),
+                                       "..", "sample_data",
+                                       "sample_source_model.xml")
 
+    def test_xml_to_shp_no_validation(self):
+        """
+        Tests the conversion to shapefile - without validation
+        """
+        #output_dir = os.path.join(os.path.dirname(__file__), "outputs")
+        subprocess.call(["mkdir", "source_shp"])
+        exit_code = subprocess.call([
+            "python",
+            self.prog,
+            "--input-nrml-file",
+            self.input_file,
+            "--output-file",
+            os.path.join("source_shp", "src_model_files")])
+        self.assertEqual(exit_code, 0)
+        # Cleanup
+        subprocess.call(["rm", "-r", "source_shp"])
         
+    def test_xml_to_shp_with_validation(self):
+        """
+        Tests the conversion to shapefile - with validation
+        """
+        #output_dir = os.path.join(os.path.dirname(__file__), "outputs")
+        subprocess.call(["mkdir", "source_shp"])
+        exit_code = subprocess.call([
+            "python",
+            self.prog,
+            "--input-nrml-file",
+            self.input_file,
+            "--output-file",
+            os.path.join("source_shp", "src_model_files"),
+            "--validate"])
+        self.assertEqual(exit_code, 0)
+        # Cleanup
+        subprocess.call(["rm", "-r", "source_shp"])
 

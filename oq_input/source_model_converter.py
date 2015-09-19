@@ -999,10 +999,13 @@ def set_up_arg_parser():
     group.add_argument('--input-nrml-file',
                        help='path to source model NRML file',
                        default=None)
-    flags.add_argument('--validate',
-                       help='Apply validation to input model (can be slow)',
-                       default=False,
-                       required=False)
+    parser.add_argument('--validate',
+                        dest='validate',
+                        action="store_true",
+                        help='Apply validation to input model (can be slow)',
+                        default=False,
+                        required=False)
+
     #group.add_argument('--input-shp-files',
     #                   help='path(s) to source model ESRI shapefile(s)' +
     #                        '(file root only - no extension)',
