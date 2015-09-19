@@ -43,56 +43,71 @@
 Convert a site model from csv to Site_Model.xml and vice-versa
 
 """
+import ast
 import argparse
-import openquake.nrmllib
-from openquake.nrmllib.hazard.parsers import SiteModelParser
-from lxml import etree
 from argparse import RawTextHelpFormatter
 import numpy as np
-from shapely import wkt
+from collections import OrderedDict
 
-def csv_to_xml(input_csv, output_xml, geo_precision="%12.6f",
-        site_precision="%8.2f"):
-    """
-    Converts the csv file to the xml format
-    """
-    data = np.genfromtxt(input_csv, delimiter=",", skip_header=1)
-    nsites = np.shape(data)[0]
-    with open(output_xml, "w") as fh:
-        root = etree.Element('nrml',
-                              nsmap=openquake.nrmllib.SERIALIZE_NS_MAP)
-        site_model = etree.SubElement(root, "siteModel")
-        for iloc in range(0, nsites):
-            site_value = etree.SubElement(site_model, "site")
-            site_value.set("lon", geo_precision % data[iloc, 0])
-            site_value.set("lat", geo_precision % data[iloc, 1])
-            site_value.set("vs30", site_precision % data[iloc, 2])
-            if data[iloc, 3]:
-                site_value.set("vs30Type", "measured")
-            else:
-                site_value.set("vs30Type", "inferred")
-            site_value.set("z1pt0", site_precision % data[iloc, 4])
-            site_value.set("z2pt5", site_precision % data[iloc, 5])
-        fh.write(etree.tostring(root, pretty_print=True,
-                                xml_declaration=True, encoding='UTF-8'))
+from openquake.commonlib.node import read_nodes, LiteralNode
+from openquake.commonlib import nrml
+from openquake.commonlib.valid import site_param
 
 
-def xml_to_csv(input_xml, output_csv, geo_precision="%12.6f",
-        site_precision="%8.2f"):
+def xml_to_csv(input_xml, output_csv):
     """
-    Converts the xml to csv format
+    Parses the site model from an input xml file to a headed csv file
     """
-    parser = SiteModelParser(input_xml)
-    sites = list(parser.parse())
-    f = open(output_csv, "w")
-
-    target_string = ",".join([geo_precision, geo_precision, site_precision,
-                              "%s", site_precision, site_precision])
+    # Read in from XML
+    sites = read_nodes(input_xml, lambda el: el.tag.endswith("site"),
+                       nrml.nodefactory["siteModel"])
+    fid = open(output_csv, "w")
+    print >> fid, "%s" % "longitude,latitude,vs30,vs30Type,z1pt0,z2pt5,backarc"
     for site in sites:
-        locn = wkt.loads(site.wkt)
-        print >> f, target_string % (locn.x, locn.y, site.vs30, site.vs30_type,
-                                     site.z1pt0, site.z2pt5)
-    f.close()
+        if "backarc" in site.attrib:
+            if ast.literal_eval(site.attrib["backarc"]):
+                site.attrib["backarc"] = 1
+            else:
+                site.attrib["backarc"] = 0
+
+        else:
+            site.attrib["backarc"] = 0
+
+        if site["vs30Type"] == "measured":
+            vs30_type = 1
+        else:
+            vs30_type = 0
+
+        print >> fid, "%s" % ",".join([
+            site["lon"], site["lat"], site["vs30"],
+            str(vs30_type), site["z1pt0"], site["z2pt5"],
+            str(site["backarc"])])
+    fid.close()
+
+def csv_to_xml(input_csv, output_xml):
+    """
+    Parses the site model from an input (headed) csv file to an output xml
+    """
+    data = np.genfromtxt(input_csv, delimiter=",", names=True)
+    site_nodes = []
+    for i in range(0, len(data)):
+        site_attrib = [("lon", str(data["longitude"][i])),
+                       ("lat", str(data["latitude"][i])),
+                       ("vs30", str(data["vs30"][i])),
+                       ("vs30Type", str(bool(data["vs30Type"][i]))),
+                       ("z1pt0", str(data["z1pt0"][i])),
+                       ("z2pt5", str(data["z2pt5"][i]))]
+        if "backarc" in data:
+            site_attrib.append(("backarc", str(bool(data["backarc"][i]))))
+        else:
+            site_attrib.append(("backarc", "False"))
+        site_nodes.append(LiteralNode("site",
+                                      OrderedDict(site_attrib),
+                                      nodes=None))
+    site_model = LiteralNode("siteModel", nodes=site_nodes)
+    with open(output_xml, "w") as fid:
+        nrml.write([site_model], fid, "%s")
+
 
 def set_up_arg_parser():
     """
@@ -142,4 +157,4 @@ if __name__ == "__main__":
     elif args.input_xml_file:
         xml_to_csv(args.input_xml_file, args.output_csv_file)
     else:
-        parser.print_usage()                
+        parser.print_usage()

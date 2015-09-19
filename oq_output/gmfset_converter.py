@@ -50,7 +50,9 @@ import os
 import csv
 import argparse
 import numpy
-from lxml import etree
+from collections import OrderedDict
+#from lxml import etree
+from openquake.commonlib.nrml import read_lazy
 from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
@@ -92,40 +94,32 @@ def parse_gmfc_file(file_name):
     """
     Parse NRML 0.4 GMF collection file.
     """
-    parse_args = dict(source=file_name)
-
-    for _, element in etree.iterparse(**parse_args):
-        if element.tag == '%sgmfCollection' % NRML:
-            gmfc = parse_gmfc_collection(element)
-            element.clear()
-
+    node_set = read_lazy(file_name, "node")
+    gmfss = []
+    for element in node_set:
+        if "gmfSet" in element.tag:
+            gmfss.append(parse_gmf_set(element))
+        elif "gmfCollection" in element.tag:
+            gmfc = GmfCollection(element.attrib["sourceModelTreePath"],
+                                 element.attrib["gsimTreePath"],
+                                 None)
+        else:
+            pass
+    gmfc.gmfss = gmfss
     return gmfc
 
-def parse_gmfc_collection(element):
-    """
-    Parse NRML 0.4 GMF collection element.
-    """
-    sm_tp = element.attrib['sourceModelTreePath']
-    gsim_tp = element.attrib['gsimTreePath']
 
-    gmfss = []
-    for e in element.iterchildren():
-        gmfss.append(parse_gmf_set(e))
-        e.clear()
 
-    return GmfCollection(sm_tp, gsim_tp, gmfss)
-
-def parse_gmf_set(element):
+def parse_gmf_set(gmfset_node):
     """
     Parse NRML 0.4 GMF set element.
     """
-    stochasticEventSetId = element.attrib['stochasticEventSetId']
-    investigationTime = element.attrib['investigationTime']
+    stochasticEventSetId = gmfset_node.attrib['stochasticEventSetId']
+    investigationTime = float(gmfset_node.attrib['investigationTime'])
     print 'Processing gmf set %s' % stochasticEventSetId
-
-    gmfs = {}
-    for e in element.iterchildren():
-        gmf = parse_gmf(e)
+    gmfs = OrderedDict()
+    for node in gmfset_node.nodes:
+        gmf = parse_gmf(node)
         IMT = gmf.IMT if gmf.IMT != 'SA' else '%s(%s)' % (gmf.IMT, gmf.saPeriod)
 
         if IMT in gmfs.keys():
@@ -133,34 +127,27 @@ def parse_gmf_set(element):
         else:
             gmfs[IMT] = [(gmf.ruptureId, gmf.values)]
 
-        e.clear()
+    return GmfSet(stochasticEventSetId, investigationTime, gmfs)    
+    
 
-    return GmfSet(stochasticEventSetId, investigationTime, gmfs)
-
-def parse_gmf(element):
+def parse_gmf(gmf_node):
     """
     Parse NRML 0.4 GMF element.
     """
-    ruptureId = element.attrib['ruptureId']
-    IMT = element.attrib['IMT']
+    ruptureId = gmf_node.attrib["ruptureId"]
+    IMT = gmf_node.attrib["IMT"]
     saDamping = None
     saPeriod = None
-    if IMT == 'SA':
-        saDamping = element.attrib['saDamping']
-        saPeriod = element.attrib['saPeriod']
-
-    print 'Processing gmf %s' % ruptureId
-    lons = []
-    lats = []
+    if "IMT" == "SA":
+        saDamping = gmf_node.attrib["saDamping"]
+        saPeriod = gmf_node.attrib["saPeriod"]
     values = []
-    for e in element.iterchildren():
-        lons.append(float(e.attrib['lon']))
-        lats.append(float(e.attrib['lat']))
-        values.append(float(e.attrib['gmv']))
-        e.clear()
-    values = numpy.array([lons, lats, values]).T
+    for node in gmf_node.nodes:
+        values.append([float(node.attrib["lon"]),
+                       float(node.attrib["lat"]),
+                       float(node.attrib["gmv"])])
+    return GMF(IMT, ruptureId, numpy.array(values), saDamping, saPeriod)
 
-    return GMF(IMT, ruptureId, values, saDamping, saPeriod)
 
 def save_gmfs_to_csv(gmf_collection, out_dir):
     """

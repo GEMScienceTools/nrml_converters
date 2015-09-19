@@ -47,12 +47,13 @@ import os
 import argparse
 import numpy
 import utils
-from lxml import etree
+#from lxml import etree
 from collections import OrderedDict
 from subprocess import call
-
+from openquake.commonlib.nrml import read
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
+
 
 def parse_nrml_disaggregation_file(nrml_disaggregation):
     """
@@ -60,51 +61,46 @@ def parse_nrml_disaggregation_file(nrml_disaggregation):
     """
     metadata = OrderedDict()
     matrices = {}
-
-    parse_args = dict(source=nrml_disaggregation)
-    for _, element in etree.iterparse(**parse_args):
-        if element.tag == '%sdisaggMatrices' % NRML:
-            a = element.attrib
-            metadata['smlt_path'] = a.get('sourceModelTreePath')
-            metadata['gsimlt_path'] = a.get('gsimTreePath')
-            metadata['imt'] = a['IMT']
-            metadata['investigation_time'] = a['investigationTime']
-            metadata['sa_period'] = a.get('saPeriod')
-            metadata['sa_damping'] = a.get('saDamping')
-            metadata['lon'] = a.get('lon')
-            metadata['lat'] = a.get('lat')
-            metadata['Mag'] = \
-                numpy.array(a.get('magBinEdges').split(','), dtype=float)
-            metadata['Dist'] = \
-                numpy.array(a.get('distBinEdges').split(','), dtype=float)
-            metadata['Lon'] = \
-                numpy.array(a.get('lonBinEdges').split(','), dtype=float)
-            metadata['Lat'] = \
-                numpy.array(a.get('latBinEdges').split(','), dtype=float)
-            metadata['Eps'] = \
-                numpy.array(a.get('epsBinEdges').split(','), dtype=float)
-            metadata['TRT'] = \
-                numpy.array(
-                    map(str.strip, a.get('tectonicRegionTypes').split(',')),
-                    dtype=object
+    node_set = read(nrml_disaggregation, chatty=False).nodes[0]
+    # Loads "disaggMatrices" nodes
+    metadata['smlt_path'] = node_set.attrib['sourceModelTreePath']
+    metadata['gsimlt_path'] = node_set.attrib['gsimTreePath']
+    metadata['imt'] = node_set.attrib['IMT']
+    metadata['investigation_time'] = node_set.attrib['investigationTime']
+    if metadata["imt"] == "SA":
+        metadata['sa_period'] = node_set.attrib['saPeriod']
+        metadata['sa_damping'] = node_set.attrib['saDamping']
+    metadata['lon'] = node_set.attrib['lon']
+    metadata['lat'] = node_set.attrib['lat']
+    metadata['Mag'] = \
+        numpy.array(node_set.attrib['magBinEdges'].split(','), dtype=float)
+    metadata['Dist'] = \
+        numpy.array(node_set.attrib['distBinEdges'].split(','), dtype=float)
+    metadata['Lon'] = \
+        numpy.array(node_set.attrib['lonBinEdges'].split(','), dtype=float)
+    metadata['Lat'] = \
+        numpy.array(node_set.attrib['latBinEdges'].split(','), dtype=float)
+    metadata['Eps'] = \
+        numpy.array(node_set.attrib['epsBinEdges'].split(','), dtype=float)
+    metadata['TRT'] = \
+        numpy.array(
+            map(str.strip, node_set.attrib['tectonicRegionTypes'].split(',')),
+            dtype=object
                 )
-        elif element.tag == '%sdisaggMatrix' % NRML:
-            a = element.attrib
-            disag_type = a.get('type')
-            dims = tuple(map(int, a.get('dims').split(',')))
-            poe = float(a.get('poE'))
-            iml = float(a.get('iml'))
-
-            matrix = numpy.zeros(dims)
-            for e in element:
-                a = e.attrib
-                idx = tuple(map(int, a.get('index').split(',')))
-                value = float(a.get('value'))
-                matrix[idx] = value
-
-            matrices[disag_type] = (poe, iml, matrix)
-
+    # Load values
+    for disag_node in node_set:
+        disag_type = disag_node.attrib["type"]
+        dims = tuple(map(int, disag_node.attrib['dims'].split(',')))
+        poe = float(disag_node.attrib['poE'])
+        iml = float(disag_node.attrib['iml'])
+        matrix = numpy.zeros(dims)
+        for matx in disag_node.nodes:
+            idx = tuple(map(int, matx.attrib["index"].split(",")))
+            value = float(matx.attrib["value"])
+            matrix[idx] = value
+        matrices[disag_type] = (poe, iml, matrix)
     return metadata, matrices
+
 
 def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
     """

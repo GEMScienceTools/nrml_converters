@@ -50,7 +50,7 @@ import csv
 import argparse
 import numpy
 from collections import OrderedDict
-from lxml import etree
+from openquake.commonlib.nrml import read_lazy
 from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
@@ -58,30 +58,24 @@ NRML='{http://openquake.org/xmlns/nrml/0.4}'
 
 def parse_gmfs_file(file_name):
     """
-    Parse NRML 0.4 GMF set file.
+    Parses the NRML 0.4 GMF set file
     """
-    parse_args = dict(source=file_name)
-
     gmfs = OrderedDict()
-    for _, element in etree.iterparse(**parse_args):
-        if element.tag == '%sgmf' % NRML:
-            imt = element.attrib['IMT']
-            if imt == 'SA':
-                damping = element.attrib['saDamping']
-                period = element.attrib['saPeriod']
-                imt = '%s(%s)' % (imt, period)
-            gmf = []
-            for node in element:
-                gmv = float(node.attrib['gmv'])
-                lon = float(node.attrib['lon'])
-                lat = float(node.attrib['lat'])
-                gmf.append([lon, lat, gmv])
-            if imt in gmfs.keys():
-                gmfs[imt].append(gmf)
-            else:
-                gmfs[imt] = [gmf]
-
+    node_set = read_lazy(file_name, "node")[0]
+    for gmf_node in node_set.nodes:
+        # Parse field
+        gmf = []
+        imt = gmf_node.attrib["IMT"]
+        for val in gmf_node.nodes:
+            gmf.append([float(val.attrib["lon"]),
+                        float(val.attrib["lat"]),
+                        float(val.attrib["gmv"])])
+        if imt in gmfs.keys():
+            gmfs[imt].append(numpy.array(gmf))
+        else:
+            gmfs[imt] = [numpy.array(gmf)]
     return gmfs
+
 
 def save_gmfs_to_csv(gmfs, out_dir):
     """
