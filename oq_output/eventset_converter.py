@@ -51,13 +51,14 @@ import csv
 import argparse
 import numpy
 from lxml import etree
+from openquake.commonlib.node import striptag
 from openquake.commonlib.nrml import read
 
 from openquake.hazardlib.geo.mesh import RectangularMesh
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
 
-PLANAR_TAGS = ["{:s}{:s}".format(NRML, tag)
+PLANAR_TAGS = ["{:s}".format(tag)
                for tag in ["topLeft", "topRight", "bottomLeft", "bottomRight"]]
 
 
@@ -150,7 +151,7 @@ def parse_planar_surf(element):
     """
     Parse NRML 0.4 'planarSurface' and return class PlanarSurface.
     """
-    tag_set = [node.tag for node in element.nodes]
+    tag_set = [striptag(node.tag) for node in element.nodes]
     (top_left, top_right, bottom_left, bottom_right) = tuple(
         [element.nodes[tag_set.index(tag)] for tag in PLANAR_TAGS])
 #    for node in element.nodes:
