@@ -44,28 +44,34 @@ Convert NRML hazard curves file to .csv file.
 import os
 import argparse
 import numpy
-from lxml import etree
 import matplotlib.pyplot as plt
+from openquake.commonlib.nrml import read_lazy
 
-try:
-    from openquake.nrmllib.hazard.parsers import HazardCurveXMLParser
-except:
-    from openquake.nrmllib.hazard.parsers import HazardCurveParser
-    HazardCurveXMLParser = HazardCurveParser
-
-
-def _set_curves_matrix(hcm):
+def read_hazard_curves(filename):
     """
-    Store locations and poes in :class:`openquake.nrml.models.HazardCurveModel`
-    in numpy array.
+    Reads the hazard curves from the NRML file and sorts the results
+    into a dictionary of hazard curves information
     """
-    curves = []
-    for loc, poes in hcm:
-        row = [loc.x, loc.y]
-        row.extend(poes)
-        curves.append(row)
-
-    return numpy.array(curves)
+    node_set = read_lazy(filename, "poEs")[0]
+    hazard_curves = {
+        "imt": node_set.attrib["IMT"],
+        "investigation_time": float(node_set.attrib["investigationTime"]),
+        "gsim_tree_path": "_".join(node_set.attrib["gsimTreePath"]),
+        "source_model_tree_path": "_".join(
+            node_set.attrib["sourceModelTreePath"]),
+        "imls": numpy.array(node_set.nodes[0].text)}
+    n_curves = len(node_set.nodes) - 1
+    locations = []
+    poes = []
+    for hc_node in node_set.nodes[1:]:
+        # Get location info
+        lon, lat = hc_node.nodes[0].nodes[0].text
+        locations.append([lon, lat])
+        # Get PoEs
+        poes.append(hc_node.nodes[1].text)
+    hazard_curves["curves"] = numpy.column_stack([numpy.array(locations),
+                                                  numpy.array(poes)])
+    return hazard_curves
 
 def _set_header(hcm):
     """
@@ -73,32 +79,32 @@ def _set_header(hcm):
     in a string to be used as header
     """
     header = ','.join(
-        ['%s=%s' % (k,v) for k,v in hcm.metadata.items()
-        if v is not None and k != 'imls']
+        ['%s=%s' % (k,v) for k,v in hcm.items()
+        if v is not None and k != 'imls' and k != "curves"]
     )
     header = '# ' + header
-    header += '\nlon,lat,'+','.join([str(iml) for iml in hcm.metadata['imls']])
+    header += '\nlon,lat,'+','.join([str(iml) for iml in hcm['imls']])
 
     return header
 
-def plot_hazard_curve(filename_root, curves, hcm):
+def plot_hazard_curve(filename_root, hcm):
     """
     Exports the hazard curves to a set of pdf files
     """
     os.mkdir(filename_root)
-    if ("PGA" in hcm.metadata["imt"]) or ("SA" in hcm.metadata["imt"]):
+    if ("PGA" in hcm["imt"]) or ("SA" in hcm["imt"]):
         imt_units = "g"
     else:
         imt_units = "cm/s"
-    num_curves = numpy.shape(curves)[0]
-    for iloc, row in enumerate(curves):
+    num_curves = numpy.shape(hcm["curves"])[0]
+    for iloc, row in enumerate(hcm["curves"]):
         print "Plotting curve %d of %d" % (iloc, num_curves)
         fig = plt.figure(figsize=(7, 5))
         fig.set_tight_layout(True)
-        plt.loglog(hcm.metadata["imls"], row[2:], 'bo-', linewidth=2.0)
-        plt.xlabel("%s (%s)" %(hcm.metadata["imt"], imt_units), fontsize=14)
+        plt.loglog(hcm["imls"], row[2:], 'bo-', linewidth=2.0)
+        plt.xlabel("%s (%s)" % (hcm["imt"], imt_units), fontsize=14)
         plt.ylabel("Probability of Being Exceeded in %s years" %
-                   hcm.metadata["investigation_time"], fontsize=14)
+                   hcm["investigation_time"], fontsize=14)
         if row[0] < 0.0:
             long_ind = "W"
         else:
@@ -125,16 +131,17 @@ def save_hazard_curves_to_csv(nrml__hazard_curves_file, file_name_root,
         raise ValueError('Output file already exists.'
                          ' Please specify different name or remove old file')
 
-    hcm = HazardCurveXMLParser(nrml__hazard_curves_file).parse()
+    #hcm = HazardCurveXMLParser(nrml__hazard_curves_file).parse()
+    hcm = read_hazard_curves(nrml__hazard_curves_file)
 
-    curves = _set_curves_matrix(hcm)
+    #curves = _set_curves_matrix(hcm)
     header = _set_header(hcm)
     f = open(output_file, 'w')
     f.write(header+'\n')
-    numpy.savetxt(f, curves, fmt='%g', delimiter=',')
+    numpy.savetxt(f, hcm["curves"], fmt='%g', delimiter=',')
     f.close()
     if plot_curves:
-        plot_hazard_curve(file_name_root, curves, hcm)
+        plot_hazard_curve(file_name_root, hcm)
 
 
 

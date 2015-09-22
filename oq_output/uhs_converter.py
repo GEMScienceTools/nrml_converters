@@ -45,44 +45,75 @@ Convert NRML uniform hazard spectra file to .csv file.
 import os
 import argparse
 import numpy
-from lxml import etree
+#from lxml import etree
+from openquake.commonlib.nrml import read_lazy
 import matplotlib.pyplot as plt
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
 GML='{http://www.opengis.net/gml}'
 
 
+#def parse_nrml_uhs_curves(nrml_uhs_map):
+#    """
+#    Parse NRML uhs file.
+#    """
+#    metadata = {}
+#    periods = None
+#    values = []
+#
+#    parse_args = dict(source=nrml_uhs_map)
+#    for _, element in etree.iterparse(**parse_args):
+#        if element.tag == '%suniformHazardSpectra' % NRML:
+#            a = element.attrib
+#            metadata['statistics'] = a.get('statistics')
+#            metadata['quantile_value'] = a.get('quantileValue')
+#            metadata['smlt_path'] = a.get('sourceModelTreePath')
+#            metadata['gsimlt_path'] = a.get('gsimTreePath')
+#            metadata['investigation_time'] = a['investigationTime']
+#            metadata['poe'] = a.get('poE')
+#        elif element.tag == '%speriods' % NRML:
+#            periods = map(float, element.text.split())
+#        elif element.tag == '%suhs' % NRML:
+#            lon, lat = map(
+#                float, element.find('%sPoint/%spos' % (GML, GML)).text.split()
+#            )
+#            imls = map(float, element.find('%sIMLs' % NRML).text.split())
+#
+#            uhs = [lon, lat]
+#            uhs.extend(imls)
+#            values.append(uhs)
+#
+#    return metadata, periods, numpy.array(values)
+
+
 def parse_nrml_uhs_curves(nrml_uhs_map):
     """
-    Parse NRML uhs file.
+    Reads the NRML file and returns the metadata (as a dictionary), the
+    periods (as a numpy array) and the uhs values as an array of
+    [lon, lat, uhs]
     """
-    metadata = {}
-    periods = None
+    node_set = read_lazy(nrml_uhs_map, "IMLs")[0]
+    # Read metadata
+    metadata = {
+        "smlt_path": node_set.attrib["sourceModelTreePath"],
+        "investigation_time": float(node_set.attrib["investigationTime"]),
+        "poe": float(node_set.attrib["poE"]),
+        "gsimlt_path": node_set["gsimTreePath"]}
+    for key in ["statistics", "quantileValue"]:
+        if key in node_set.attrib:
+            metadata[key] = node_set.attrib[key]
+        else:
+            metadata[key] = None
+    periods = numpy.array(map(float, node_set.nodes[0].text.split()))
     values = []
-
-    parse_args = dict(source=nrml_uhs_map)
-    for _, element in etree.iterparse(**parse_args):
-        if element.tag == '%suniformHazardSpectra' % NRML:
-            a = element.attrib
-            metadata['statistics'] = a.get('statistics')
-            metadata['quantile_value'] = a.get('quantileValue')
-            metadata['smlt_path'] = a.get('sourceModelTreePath')
-            metadata['gsimlt_path'] = a.get('gsimTreePath')
-            metadata['investigation_time'] = a['investigationTime']
-            metadata['poe'] = a.get('poE')
-        elif element.tag == '%speriods' % NRML:
-            periods = map(float, element.text.split())
-        elif element.tag == '%suhs' % NRML:
-            lon, lat = map(
-                float, element.find('%sPoint/%spos' % (GML, GML)).text.split()
-            )
-            imls = map(float, element.find('%sIMLs' % NRML).text.split())
-
-            uhs = [lon, lat]
-            uhs.extend(imls)
-            values.append(uhs)
-
+    for node in node_set.nodes[1:]:
+        subnodes = list(node.nodes)
+        lon, lat = map(float, subnodes[0].nodes[0].text.split())
+        uhs = [lon, lat]
+        uhs.extend(map(float, subnodes[1].text.split()))
+        values.append(uhs)
     return metadata, periods, numpy.array(values)
+
 
 def plot_uhs(file_name_root, uhs, periods, metadata):
     """
@@ -111,8 +142,8 @@ def plot_uhs(file_name_root, uhs, periods, metadata):
             lat_ind = "N"
         title_string_upper = "{:s} UHS with a {:s} PoE in {:s} Years\n".format(
              metadata["statistics"],
-             metadata["poe"],
-             metadata["investigation_time"])
+             str(metadata["poe"]),
+             str(metadata["investigation_time"]))
         title_string_lower = "Location: {:.6f}{:s}, {:.6f}{:s}".format(
             numpy.abs(row[0]), long_ind, numpy.abs(row[1]), lat_ind)
         plt.title(title_string_upper + title_string_lower, fontsize=16)

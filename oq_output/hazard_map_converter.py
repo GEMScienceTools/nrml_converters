@@ -45,7 +45,8 @@ Convert NRML hazard map file to .csv file.
 import os
 import argparse
 import numpy
-from lxml import etree
+#from lxml import etree
+from openquake.commonlib.nrml import read_lazy
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
 
@@ -75,34 +76,33 @@ def atkinson_kaka_2007_rsa2mmi(imt, values):
     mmi[mmi > 10.0] = 10.0
     return mmi, AK2007[imt]["sigma1"] 
 
-
 def parse_nrml_hazard_map(nrml_hazard_map):
     """
-    Parse NRML hazard map file.
+    Reads the NRML file and returns the metadata as a dictionary and the value
+    as a numpy array of [lon, lat, IML]
     """
-    metadata = {}
+    node_set = read_lazy(nrml_hazard_map, "node")[0]
+    metadata = {
+        "imt": node_set.attrib["IMT"],
+
+        "smlt_path": "_".join(node_set.attrib['sourceModelTreePath']),
+        "gsimlt_path": "_".join(node_set.attrib['gsimTreePath']),
+        "investigation_time" :  node_set.attrib['investigationTime'],
+        "poe": node_set.attrib['poE']}
+
+    if "quantileValue" in node_set.attrib:
+        metadata["quantile_value"] = node_set.attrib['quantileValue']
+    if "SA" in metadata["imt"]:
+        metadata["sa_period"] = node_set.attrib['saPeriod']
+        metadata['sa_damping'] = node_set.attrib['saDamping']
     values = []
-
-    parse_args = dict(source=nrml_hazard_map)
-    for _, element in etree.iterparse(**parse_args):
-        if element.tag == '%shazardMap' % NRML:
-            a = element.attrib
-            metadata['statistics'] = a.get('statistics')
-            metadata['quantile_value'] = a.get('quantileValue')
-            metadata['smlt_path'] = a.get('sourceModelTreePath')
-            metadata['gsimlt_path'] = a.get('gsimTreePath')
-            metadata['imt'] = a['IMT']
-            metadata['investigation_time'] = a['investigationTime']
-            metadata['sa_period'] = a.get('saPeriod')
-            metadata['sa_damping'] = a.get('saDamping')
-            metadata['poe'] = a.get('poe')
-        elif element.tag == '%snode' % NRML:
-            a = element.attrib
-            values.append(
-                map(float, [a.get('lon'), a.get('lat'), a.get('iml')])
-            )
-
+    for node in node_set.nodes:
+        values.append([float(node.attrib["lon"]),
+                       float(node.attrib["lat"]),
+                       float(node.attrib["iml"])])
+    values = numpy.array(values)
     return metadata, values
+
 
 def save_hazard_map_to_csv(nrml__hazard_map_file, file_name_root,
         to_mmi=False):

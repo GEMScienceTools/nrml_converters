@@ -51,23 +51,32 @@ import csv
 import argparse
 import numpy
 from lxml import etree
+from openquake.commonlib.node import striptag
+from openquake.commonlib.nrml import read
 
 from openquake.hazardlib.geo.mesh import RectangularMesh
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
+
+PLANAR_TAGS = ["{:s}".format(tag)
+               for tag in ["topLeft", "topRight", "bottomLeft", "bottomRight"]]
 
 
 def parse_sesc_file(file_name):
     """
     Parse NRML 0.4 SES collection file.
     """
-    parse_args = dict(source=file_name)
-
-    for _, element in etree.iterparse(**parse_args):
-        if element.tag == '%sstochasticEventSetCollection' % NRML:
-            sesc = parse_ses_collection(element)
-
-    return sesc
+    
+    element = read(file_name, chatty=False)[0]
+    #sesc = parse_ses_collection(element)
+    return parse_ses_collection(element)
+#    parse_args = dict(source=file_name)
+#  
+#    for _, element in etree.iterparse(**parse_args):
+#        if element.tag == '%sstochasticEventSetCollection' % NRML:
+#            sesc = parse_ses_collection(element)
+#
+#    return sesc
 
 def parse_ses_collection(element):
     """
@@ -78,8 +87,8 @@ def parse_ses_collection(element):
 
     sess = []
     num_ses = 0
-    for e in element.iterchildren():
-        sess.append(parse_ses(e))
+    for node in element.nodes:
+        sess.append(parse_ses(node))
 
     print 'number of stochastic event sets: %s' % len(sess)
 
@@ -96,8 +105,8 @@ def parse_ses(element):
     print 'Processing ses %s' % ID
 
     rups = []
-    for e in element.iterchildren():
-        rups.append(parse_rup(e))
+    for node in element.nodes:
+        rups.append(parse_rup(node))
 
     return StochasticEventSet(ID, time_span, rups)
 
@@ -113,32 +122,50 @@ def parse_rup(element):
     tectonic_region = element.attrib['tectonicRegion']
 
     print 'Processing rupture %s' % ID
-
-    planar_surfs = element.findall('%splanarSurface' % NRML)
-    mesh = element.find('%smesh' % NRML)
-
-    if planar_surfs:
-        if len(planar_surfs) == 1:
-            surf = parse_planar_surf(planar_surfs[0])
+    for node in element.nodes:
+        if "planarSurface" in node.tag:
+            surf = parse_planar_surf(node)
         else:
-            surf = []
-            for e in planar_surfs:
-                surf.append(parse_planar_surf(e))
-            surf = MultiPlanarSurface(surf)
-    else:
-        assert(mesh is not None)
-        surf = parse_mesh(mesh)
-
+            surf = parse_mesh(node)
     return Rupture(ID, magnitude, strike, dip, rake, tectonic_region, surf)
+#    
+#    
+#    planar_surfs = element.findall('%splanarSurface' % NRML)
+#    mesh = element.find('%smesh' % NRML)
+#
+#    if planar_surfs:
+#        if len(planar_surfs) == 1:
+#            surf = parse_planar_surf(planar_surfs[0])
+#        else:
+#            surf = []
+#            for e in planar_surfs:
+#                surf.append(parse_planar_surf(e))
+#            surf = MultiPlanarSurface(surf)
+#    else:
+#        assert(mesh is not None)
+#        surf = parse_mesh(mesh)
+#
+#    return Rupture(ID, magnitude, strike, dip, rake, tectonic_region, surf)
 
 def parse_planar_surf(element):
     """
     Parse NRML 0.4 'planarSurface' and return class PlanarSurface.
     """
-    top_left = element.find('%stopLeft' % NRML)
-    top_right = element.find('%stopRight' % NRML)
-    bottom_left = element.find('%sbottomLeft' % NRML)
-    bottom_right = element.find('%sbottomRight' % NRML)
+    tag_set = [striptag(node.tag) for node in element.nodes]
+    (top_left, top_right, bottom_left, bottom_right) = tuple(
+        [element.nodes[tag_set.index(tag)] for tag in PLANAR_TAGS])
+#    for node in element.nodes:
+#        if "topLeft" in node.tag:
+#            top_left = copy(node)
+#        elif "topRight" in node.tag:
+#            top_right = copy(node)
+#        elif "bottomRight" in node.tag:
+#          
+#
+#    top_left = element.find('%stopLeft' % NRML)
+#    top_right = element.find('%stopRight' % NRML)
+#    bottom_left = element.find('%sbottomLeft' % NRML)
+#    bottom_right = element.find('%sbottomRight' % NRML)
 
     corners_lons = numpy.array(
         [float(top_left.attrib['lon']), float(top_right.attrib['lon']),
@@ -157,6 +184,7 @@ def parse_planar_surf(element):
 
     return PlanarSurface(corners_lons, corners_lats, corners_depths)
 
+
 def parse_mesh(element):
     """
     Parse NRML 0.4 'mesh' and return class MeshSurface.
@@ -168,7 +196,7 @@ def parse_mesh(element):
     lats = numpy.ndarray((nrows, ncols))
     depths = numpy.ndarray((nrows, ncols))
 
-    for e in element.iterchildren():
+    for e in element.nodes:
         row = int(e.attrib['row'])
         col = int(e.attrib['col'])
         lons[row, col] = float(e.attrib['lon'])
@@ -176,6 +204,28 @@ def parse_mesh(element):
         depths[row, col] = float(e.attrib['depth'])
 
     return MeshSurface(lons, lats, depths)
+
+
+#def parse_mesh(element):
+#    """
+#    Parse NRML 0.4 'mesh' and return class MeshSurface.
+#    """
+#    nrows = int(element.attrib['rows'])
+#    ncols = int(element.attrib['cols'])
+#
+#    lons = numpy.ndarray((nrows, ncols))
+#    lats = numpy.ndarray((nrows, ncols))
+#    depths = numpy.ndarray((nrows, ncols))
+#
+#    for e in element.iterchildren():
+#        row = int(e.attrib['row'])
+#        col = int(e.attrib['col'])
+#        lons[row, col] = float(e.attrib['lon'])
+#        lats[row, col] = float(e.attrib['lat'])
+#        depths[row, col] = float(e.attrib['depth'])
+#
+#    return MeshSurface(lons, lats, depths)
+
 
 class BaseSurface(object):
     """
