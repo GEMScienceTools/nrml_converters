@@ -107,9 +107,9 @@ RATE_PARAMS = [('rate%s' % (i+1), 'f') for i in range(MAX_RATES)]
 STRIKE_PARAMS = [('strike%s' % (i+1), 'f') for i in range(MAX_NODAL_PLANES)]
 DIP_PARAMS = [('dip%s' % (i+1), 'f') for i in range(MAX_NODAL_PLANES)]
 RAKE_PARAMS = [('rake%s' % (i+1), 'f') for i in range(MAX_NODAL_PLANES)]
-NPW_PARAMS = [('np_weight%s' % (i+1), 'f') for i in range(MAX_NODAL_PLANES)]
+NPW_PARAMS = [('npweight%s' % (i+1), 'f') for i in range(MAX_NODAL_PLANES)]
 HDEPTH_PARAMS = [('hd%s' % (i+1), 'f') for i in range(MAX_HYPO_DEPTHS)]
-HDW_PARAMS = [('hd_weight%s' % (i+1), 'f') for i in range(MAX_HYPO_DEPTHS)]
+HDW_PARAMS = [('hdweight%s' % (i+1), 'f') for i in range(MAX_HYPO_DEPTHS)]
 PLANES_STRIKES_PARAM = [('pstrike%s' % (i+1), 'f') for i in range(MAX_PLANES)]
 PLANES_DIPS_PARAM = [('pdip%s' % (i+1), 'f') for i in range(MAX_PLANES)]
 
@@ -140,7 +140,7 @@ def register_fields(w):
             w.field(param, fieldType=dtype, size=FIELD_SIZE)
 
     # source typology
-    w.field('source_type', 'C')
+    w.field('sourcetype', 'C')
 
 def expand_src_param(values, shp_params):
     """
@@ -546,7 +546,7 @@ def set_params(w, src):
     pstrikes, pdips = extract_source_planes_strikes_dips(src)
     params.update(pstrikes)
     params.update(pdips)
-    params['source_type'] = striptag(src.tag)
+    params['sourcetype'] = striptag(src.tag)
     w.record(**params)
 
 def set_area_geometry(w, src):
@@ -678,6 +678,256 @@ def set_characteristic_geometry(w_simple, w_simple_3D, w_complex, w_planar,
             pass
     if len(pparts):
         w_planar.poly(parts=pparts)
+
+
+def record_to_dict(record, fields):
+    """
+
+    """
+    data = []
+    for name, attr in zip(fields, record):
+        value = attr.strip()
+        if value:
+            data.append((name, value))
+    return OrderedDict(data)
+
+
+def area_geometry_from_shp(shape, record):
+    """
+    """
+    assert record["sourcetype"] == "areaSource"
+    geom = []
+    for row in shape.points:
+        geom.extend([row[0], row[1]])
+    poslist_node = LiteralNode("posList", text=geom)
+    linear_ring_node = LiteralNode("LinearRing", nodes=[poslist_node])
+    exterior_node = LiteralNode("exterior", nodes=[linear_ring_node])
+    polygon_node = LiteralNode("Polygon", nodes=[exterior_node])
+
+    upper_depth_node = LiteralNode("upperSeismoDepth",
+                                   text=float(record["usd"]))
+    lower_depth_node = LiteralNode("lowerSeismoDepth",
+                                   text=float(record["lsd"]))
+    return LiteralNode(
+        "areaGeometry",
+        nodes=[polygon_node, upper_depth_node, lower_depth_node])
+
+def point_geometry_from_shp(shape, record):
+    """
+    Retrieves a point geometry
+    """
+    assert record["sourcetype"] == "pointSource"
+    xy = shape.points[0][0], shape.points[0][1]
+    pos_node = LiteralNode("pos", text=xy)
+    point_node = LiteralNode("Point", nodes=[pos_node])
+    upper_depth_node = LiteralNode("upperSeismoDepth",
+                                   text=float(record["usd"]))
+    lower_depth_node = LiteralNode("lowerSeismoDepth",
+                                   text=float(record["lsd"]))
+    return LiteralNode(
+        "pointGeometry",
+        nodes=[point_node, upper_depth_node, lower_depth_node])
+
+def simple_fault_geometry_from_shp(shape, record):
+    """
+
+    """
+    assert record["sourcetype"] == "simpleFaultSource"
+    geom = []
+    for row in shape.points:
+        geom.extend([row[0], row[1]])
+    poslist_node = LiteralNode("posList", text=geom)
+    trace_node = LiteralNode("LineString", nodes=[poslist_node])
+    dip_node = LiteralNode("dip", text=float(record["dip"]))
+    upper_depth_node = LiteralNode("upperSeismoDepth",
+                                   text=float(record["usd"]))
+    lower_depth_node = LiteralNode("lowerSeismoDepth",
+                                   text=float(record["lsd"]))
+    return LiteralNode("simpleFaultGeometry",
+                       nodes=[trace_node, dip_node, upper_depth_node,
+                              lower_depth_node])
+
+def complex_fault_geometry_from_shp(shape, record):
+    """
+
+    """
+    assert record["sourcetype"] == "complexFaultSource"
+    breakers = shape.parts
+    breakers.append(len(shape.z))
+    indices = [range(breakers[i], breakers[i + 1])
+               for i in range(0, len(breakers) - 1)]
+    edges = []
+    for iloc, idx in enumerate(indices):
+        geom = []
+        for j in idx:
+            geom.extend([shape.points[j][0], shape.points[j][1],
+                         shape.z[j]])
+        poslist_node = LiteralNode("posList", text=geom)
+        linestring_node = LiteralNode("LineString", nodes=[poslist_node])
+        if iloc == 0:
+            # Fault top edge
+            edges.append(LiteralNode("faultTopEdge", nodes=[linestring_node]))
+        elif iloc == (len(indices) - 1):
+            # Fault bottom edges
+            edges.append(LiteralNode("faultBottomEdge",
+                                     nodes=[linestring_node]))
+        else:
+            edges.append(LiteralNode("intermediateEdge",
+                                     nodes=[linestring_node]))
+    return LiteralNode("complexFaultGeometry", nodes=edges)
+
+def build_incremental_mfd_from_shp(record):
+    """
+
+    """
+    rates = []
+    for i in range(1, MAX_RATES + 1):
+        key = "rate{:s}".format(str(i))
+        if key in record:
+            rates.append(record[key])
+    occur_rates = LiteralNode("occurRates", text=" ".join(rates))
+    return LiteralNode("incrementalMFD",
+        {"binWidth": float(record["bin_width"]),
+         "minMag": float(record["min_mag"])},
+        nodes=[occur_rates])
+
+def build_trunc_gr_from_shp(record):
+    """
+
+    """
+    attribs = {"aValue": float(record["a_val"]),
+               "bValue": float(record["b_val"]),
+               "minMag": float(record["min_mag"]),
+               "maxMag": float(record["max_mag"])}
+    return LiteralNode("truncGutenbergRichterMFD", attribs)
+
+def build_mfd_from_shp(record):
+    """
+
+    """
+    if ("a_val" in record) and ("b_val" in record):
+        # Is truncated GR
+        return build_trunc_gr_from_shp(record)
+    elif ("min_mag" in record) and ("bin_width" in record):
+        return build_incremental_mfd_from_shp(record)
+    else:
+        raise ValueError("MFD type unsupported or incomplete for source %s"
+                         % record["id"])
+
+def build_npd_from_shp(record):
+    """
+
+    """
+    npds = []
+    for iloc in range(1, MAX_NODAL_PLANES + 1):
+        strike_key = "strike{:s}".format(str(iloc))
+        dip_key = "dip{:s}".format(str(iloc))
+        rake_key = "rake{:s}".format(str(iloc))
+        weight_key = "npweight{:s}".format(str(iloc))
+        if (strike_key in record) and (dip_key in record) and\
+            (rake_key in record) and (weight_key in record):
+            attribs = {"strike": record[strike_key],
+                       "dip": record[dip_key],
+                       "rake": record[rake_key],
+                       "probability": record[weight_key]}
+            np_text = (float(record[weight_key]),
+                       float(record[strike_key]),
+                       float(record[dip_key]),
+                       float(record[rake_key]))
+            npds.append(LiteralNode("nodalPlane", attribs, text=np_text))
+    return LiteralNode("nodalPlaneDist", nodes=npds)
+
+def build_hdd_from_shp(record):
+    """
+
+    """
+    hdds = []
+    for iloc in range(0, MAX_HYPO_DEPTHS):
+        hd_key = "hd{:s}".format(str(iloc))
+        weight_key = "hdweight{:s}".format(str(iloc))
+        if (hd_key in record) and (weight_key in record):
+            hd_text = (float(record[weight_key]), float(record[hd_key]))
+            hdds.append(LiteralNode("hypoDepth",
+                                    {"depth": record[hd_key],
+                                     "probability": record[weight_key]},
+                                     text=hd_text))
+    return LiteralNode("hypoDepthDist", nodes=hdds)
+
+def build_point_source_from_shp(shape, record):
+    """
+    Builds the full point source from shapefile
+    """
+    attribs = {"id": record["id"], "name": record["name"],
+               "tectonicRegion": record["trt"]}
+    nodes = [point_geometry_from_shp(shape, record)]
+    # Scaling relation
+    nodes.append(LiteralNode("magScaleRel", text=record["msr"]))
+    # Aspect ratio
+    nodes.append(LiteralNode("ruptAspectRatio", text=float(record["rar"])))
+    # MFD
+    nodes.append(build_mfd_from_shp(record))
+    # Nodal Plane Distribution
+    nodes.append(build_npd_from_shp(record))
+    # Hypocentre Depth Distribtion
+    nodes.append(build_hdd_from_shp(record))
+    return LiteralNode("pointSource", attribs, nodes=nodes)
+
+
+def build_area_source_from_shp(shape, record):
+    """
+    Builds the full area source from shapefile
+    """
+    attribs = {"id": record["id"], "name": record["name"],
+               "tectonicRegion": record["trt"]}
+    nodes = [area_geometry_from_shp(shape, record)]
+    # Scaling relation
+    nodes.append(LiteralNode("magScaleRel", text=record["msr"]))
+    # Aspect ratio
+    nodes.append(LiteralNode("ruptAspectRatio", text=float(record["rar"])))
+    # MFD
+    nodes.append(build_mfd_from_shp(record))
+    # Nodal Plane Distribution
+    nodes.append(build_npd_from_shp(record))
+    # Hypocentre Depth Distribtion
+    nodes.append(build_hdd_from_shp(record))
+    return LiteralNode("areaSource", attribs, nodes=nodes)
+
+def build_simple_fault_source_from_shp(shape, record):
+    """
+    
+    """
+    attribs = {"id": record["id"], "name": record["name"],
+               "tectonicRegion": record["trt"]}
+    nodes = [simple_fault_geometry_from_shp(shape, record)]
+    # Scaling relation
+    nodes.append(LiteralNode("magScaleRel", text=record["msr"]))
+    # Aspect ratio
+    nodes.append(LiteralNode("ruptAspectRatio", text=float(record["rar"])))
+    # MFD
+    nodes.append(build_mfd_from_shp(record))
+    # Rake
+    nodes.append(LiteralNode("rake", text=float(record["rake"])))
+    return LiteralNode("simpleFaultSource", attribs, nodes=nodes)
+
+
+def build_complex_fault_source_from_shp(shape, record):
+    """
+    
+    """
+    attribs = {"id": record["id"], "name": record["name"],
+               "tectonicRegion": record["trt"]}
+    nodes = [complex_fault_geometry_from_shp(shape, record)]
+    # Scaling relation
+    nodes.append(LiteralNode("magScaleRel", text=record["msr"]))
+    # Aspect ratio
+    nodes.append(LiteralNode("ruptAspectRatio", text=float(record["rar"])))
+    # MFD
+    nodes.append(build_mfd_from_shp(record))
+    # Rake
+    nodes.append(LiteralNode("rake", text=float(record["rake"])))
+    return LiteralNode("complexFaultSource", attribs, nodes=nodes)
+
+
 
 class SourceModel(object):
     """
@@ -873,13 +1123,44 @@ class ShapefileParser(SourceModelParser):
         if src_mod.has_mfd_incremental is False:
             MFD_PARAMS.remove(('bin_width', 'bin_width', 'f'))
 
-    def read(self, shapefile, validate=False,
+    def read(self, input_shapefile, validate=False,
             simple_fault_spacing=1.0, complex_mesh_spacing=5.0,
             mfd_spacing=0.1):
         """
         Build the source model from nrml format
         """
-        raise NotImplementedError
+        reader = shapefile.Reader(input_shapefile)
+        fields = [field[0] for field in reader.fields[1:]]
+        shapes = reader.shapes()
+        records = reader.records()
+        sources = []
+        if validate:
+            converter = SourceConverter(1.0, simple_fault_spacing,
+                                        complex_mesh_spacing,
+                                        mfd_spacing,
+                                        10.0)
+
+        for iloc in range(0, reader.numRecords):
+            # Build record dictionary
+            record = record_to_dict(records[iloc], fields)
+            shape = shapes[iloc]
+            if "pointSource" in record["sourcetype"]:
+                src = build_point_source_from_shp(shape, record)
+            elif "areaSource" in record["sourcetype"]:
+                src = build_area_source_from_shp(shape, record)
+            elif "simpleFaultSource" in record["sourcetype"]:
+                src = build_simple_fault_source_from_shp(shape, record)
+            elif "complexFaultSource" in record["sourcetype"]:
+                src = build_complex_fault_source_from_shp(shape, record)
+            elif "characteristicFaultSource" in record["sourcetype"]:
+                print "Characteristic Fault Source Not Yet Supported - Sorry!"
+            else:
+                pass
+            if validate:
+                print "Validating Source %s" % src.attrib["id"]
+                _ = converter.convert_node(src)
+            sources.append(src)
+        return SourceModel(sources)
 
     def write(self, destination, source_model, name=None):
         """
@@ -1006,11 +1287,11 @@ def set_up_arg_parser():
                         default=False,
                         required=False)
 
-    #group.add_argument('--input-shp-files',
-    #                   help='path(s) to source model ESRI shapefile(s)' +
-    #                        '(file root only - no extension)',
-    #                   nargs='+',
-    #                   default=None)
+    group.add_argument('--input-shp-files',
+                       help='path(s) to source model ESRI shapefile(s)' +
+                            '(file root only - no extension)',
+                       nargs='+',
+                       default=None)
 
     return parser
 
@@ -1024,10 +1305,16 @@ if __name__ == "__main__":
         # Shapefile parser
         shapefile_parser = ShapefileParser()
         shapefile_parser.write(args.output_file, source_model)
-
-        #nrml2shp(args.input_nrml_file, args.output_file)
-    #elif args.input_shp_files:
-    #    raise NotImplementedError
-        #shp2nrml(args.input_shp_files, args.output_file)
+    elif args.input_shp_files:
+        input_parser = ShapefileParser()
+        for iloc, filename in enumerate(args.input_shp_files):
+            if iloc == 0:
+                source_model = input_parser.read(filename,
+                                                 args.validate)
+            else:
+                tmp = input_parser.read(filename, args.validate)
+                source_model.sources.extend(tmp.sources)
+        nrml_writer = SourceModelParser()
+        nrml_writer.write(args.output_file, source_model)
     else:
         parser.print_usage()
