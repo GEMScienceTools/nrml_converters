@@ -61,6 +61,12 @@ AK2007 = {"PGA": {"C1": 2.65, "C2": 1.39, "C3": -1.91, "C4": 4.09,
           "PGV": {"C1": 4.37, "C2": 1.32, "C3": 3.54, "C4": 3.03, 
                   "logy15": 0.48, "sigma1": 0.8, "cfact": 1.}}
 
+OPTIONAL_PATHS = [("statistics", "statistics"),
+                  ("gsimlt_path", "gsimTreePath"),
+                  ("smlt_path", "sourceModelTreePath"),
+                  ("quantile_value", "quantileValue")]
+
+
 def atkinson_kaka_2007_rsa2mmi(imt, values):
     """
     Implements the spectral acceleration to PGA conversion model of
@@ -84,14 +90,12 @@ def parse_nrml_hazard_map(nrml_hazard_map):
     node_set = read_lazy(nrml_hazard_map, "node")[0]
     metadata = {
         "imt": node_set.attrib["IMT"],
-
-        "smlt_path": "_".join(node_set.attrib['sourceModelTreePath']),
-        "gsimlt_path": "_".join(node_set.attrib['gsimTreePath']),
-        "investigation_time" :  node_set.attrib['investigationTime'],
-        "poe": node_set.attrib['poE']}
-
-    if "quantileValue" in node_set.attrib:
-        metadata["quantile_value"] = node_set.attrib['quantileValue']
+        "investigation_time": float(node_set.attrib["investigationTime"])}
+    for option, name in OPTIONAL_PATHS:
+        if name in node_set.attrib:
+            metadata[option] = node_set.attrib[name]
+        else:
+            metadata[option] = None
     if "SA" in metadata["imt"]:
         metadata["sa_period"] = node_set.attrib['saPeriod']
         metadata['sa_damping'] = node_set.attrib['saDamping']

@@ -84,6 +84,10 @@ GML='{http://www.opengis.net/gml}'
 #            values.append(uhs)
 #
 #    return metadata, periods, numpy.array(values)
+OPTIONAL_PATHS = [("statistics", "statistics"),
+                  ("gsimlt_path", "gsimTreePath"),
+                  ("smlt_path", "sourceModelTreePath"),
+                  ("quantile_value", "quantileValue")]
 
 
 def parse_nrml_uhs_curves(nrml_uhs_map):
@@ -94,16 +98,18 @@ def parse_nrml_uhs_curves(nrml_uhs_map):
     """
     node_set = read_lazy(nrml_uhs_map, "IMLs")[0]
     # Read metadata
+
     metadata = {
         "smlt_path": node_set.attrib["sourceModelTreePath"],
         "investigation_time": float(node_set.attrib["investigationTime"]),
         "poe": float(node_set.attrib["poE"]),
         "gsimlt_path": node_set["gsimTreePath"]}
-    for key in ["statistics", "quantileValue"]:
-        if key in node_set.attrib:
-            metadata[key] = node_set.attrib[key]
+    for option, name in OPTIONAL_PATHS:
+        if name in node_set.attrib:
+            metadata[option] = node_set.attrib[name]
         else:
-            metadata[key] = None
+            metadata[option] = None
+
     periods = numpy.array(map(float, node_set.nodes[0].text.split()))
     values = []
     for node in node_set.nodes[1:]:
