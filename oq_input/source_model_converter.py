@@ -1121,7 +1121,7 @@ class ShapefileParser(SourceModelParser):
             MFD_PARAMS.remove(('b_val', 'b_val', 'f'))
 
         if src_mod.has_mfd_incremental is False:
-            MFD_PARAMS.remove(('bin_width', 'bin_width', 'f'))
+            MFD_PARAMS.remove(('binWidth', 'bin_width', 'f'))
 
     def read(self, input_shapefile, validate=False,
             simple_fault_spacing=1.0, complex_mesh_spacing=5.0,

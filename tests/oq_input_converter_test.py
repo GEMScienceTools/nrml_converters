@@ -162,3 +162,74 @@ class SourceModelShapefileConverterTestCase(unittest.TestCase):
         # Cleanup
         subprocess.call(["rm", "-r", "source_shp"])
 
+    def test_shp_to_xml_no_validation(self):
+        """
+        """
+        # Build shapefiles
+        subprocess.call(["mkdir", "source_shp"])
+        exit_code = subprocess.call([
+            "python",
+            self.prog,
+            "--input-nrml-file",
+            self.input_file,
+            "--output-file",
+            os.path.join("source_shp", "src_model_files")])
+
+        # Run test for all shapefiles
+        point_file = os.path.join("source_shp", "src_model_files" + "_point")
+        area_file = os.path.join("source_shp", "src_model_files" + "_area")
+        simple_file = os.path.join("source_shp", "src_model_files" + "_simple")
+        complex_file = os.path.join("source_shp",
+                                    "src_model_files" + "_complex")
+        exit_code = subprocess.call(["python",
+                                     self.prog,
+                                     "--input-shp-files",
+                                     point_file,
+                                     area_file,
+                                     simple_file,
+                                     complex_file,
+                                     "--output-file",
+                                     "dummy1.xml"])
+
+        self.assertEqual(exit_code, 0)
+        # cleanup
+        subprocess.call(["rm", "-r", "source_shp"])
+        subprocess.call(["rm", "-r", "dummy1.xml"])
+
+
+    def test_shp_to_xml_validation(self):
+        """
+        """
+        # Build shapefiles
+        subprocess.call(["mkdir", "source_shp"])
+        exit_code = subprocess.call([
+            "python",
+            self.prog,
+            "--input-nrml-file",
+            self.input_file,
+            "--output-file",
+            os.path.join("source_shp", "src_model_files"),
+            "--validate"])
+
+
+        # Run test for all shapefiles
+        point_file = os.path.join("source_shp", "src_model_files" + "_point")
+        area_file = os.path.join("source_shp", "src_model_files" + "_area")
+        simple_file = os.path.join("source_shp", "src_model_files" + "_simple")
+        complex_file = os.path.join("source_shp",
+                                    "src_model_files" + "_complex")
+        exit_code = subprocess.call(["python",
+                                     self.prog,
+                                     "--input-shp-files",
+                                     point_file,
+                                     area_file,
+                                     simple_file,
+                                     complex_file,
+                                     "--output-file",
+                                     "dummy1.xml",
+                                     "--validate"])
+        self.assertEqual(exit_code, 0)
+        # cleanup
+        subprocess.call(["rm", "-r", "source_shp"])
+        subprocess.call(["rm", "-r", "dummy1.xml"])
+

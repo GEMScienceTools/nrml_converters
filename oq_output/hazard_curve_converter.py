@@ -47,6 +47,10 @@ import numpy
 import matplotlib.pyplot as plt
 from openquake.commonlib.nrml import read_lazy
 
+OPTIONAL_PATHS = [("statistics", "statistics"),
+                  ("gsim_tree_path", "gsimTreePath"),
+                  ("source_model_tree_path", "sourceModelTreePath")]
+
 def read_hazard_curves(filename):
     """
     Reads the hazard curves from the NRML file and sorts the results
@@ -56,10 +60,12 @@ def read_hazard_curves(filename):
     hazard_curves = {
         "imt": node_set.attrib["IMT"],
         "investigation_time": float(node_set.attrib["investigationTime"]),
-        "gsim_tree_path": "_".join(node_set.attrib["gsimTreePath"]),
-        "source_model_tree_path": "_".join(
-            node_set.attrib["sourceModelTreePath"]),
         "imls": numpy.array(node_set.nodes[0].text)}
+    for option, name in OPTIONAL_PATHS:
+        if name in node_set.attrib:
+            hazard_curves[option] = node_set.attrib[name]
+        else:
+            hazard_curves[option] = None
     n_curves = len(node_set.nodes) - 1
     locations = []
     poes = []
