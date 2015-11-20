@@ -826,10 +826,10 @@ def build_npd_from_shp(record):
         weight_key = "npweight{:s}".format(str(iloc))
         if (strike_key in record) and (dip_key in record) and\
             (rake_key in record) and (weight_key in record):
-            attribs = {"strike": record[strike_key],
-                       "dip": record[dip_key],
-                       "rake": record[rake_key],
-                       "probability": record[weight_key]}
+            attribs = {"strike": float(record[strike_key]),
+                       "dip": float(record[dip_key]),
+                       "rake": float(record[rake_key]),
+                       "probability": float(record[weight_key])}
             np_text = (float(record[weight_key]),
                        float(record[strike_key]),
                        float(record[dip_key]),

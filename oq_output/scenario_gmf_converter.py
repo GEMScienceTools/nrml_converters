@@ -62,7 +62,10 @@ def parse_gmfs_file(file_name):
     """
     gmfs = OrderedDict()
     node_set = read_lazy(file_name, "node")[0]
-    for gmf_node in node_set.nodes:
+    # Node set is gmf collection
+    smlt_path = node_set["sourceModelTreePath"]
+    gsim_path = node_set["gsimTreePath"]
+    for gmf_node in node_set.gmfSet.nodes:
         # Parse field
         gmf = []
         imt = gmf_node.attrib["IMT"]
@@ -74,10 +77,10 @@ def parse_gmfs_file(file_name):
             gmfs[imt].append(numpy.array(gmf))
         else:
             gmfs[imt] = [numpy.array(gmf)]
-    return gmfs
+    return gmfs, smlt_path, gsim_path
 
 
-def save_gmfs_to_csv(gmfs, out_dir):
+def save_gmfs_to_csv(gmfs, out_dir, smlt_path, gsim_path):
     """
     Save GMFs to .csv files
     """
@@ -85,16 +88,19 @@ def save_gmfs_to_csv(gmfs, out_dir):
         dir_name = '%s/GMFS_%s' % (out_dir, imt)
         os.makedirs(dir_name)
         for i, gmf in enumerate(gmfs[imt]):
-            header = 'lon,lat,value'
+            header1 = "#gsim path,{:s},smlt path,{:s}".format(gsim_path,
+                                                              smlt_path)
+            header2 = 'lon,lat,value'
             fname = '%s/gmf_%s.csv' % (dir_name, (i + 1))
             f = open(fname, 'w')
-            f.write(header+'\n')
+            f.write(header1+'\n')
+            f.write(header2+'\n')
             numpy.savetxt(f, numpy.array(gmf), fmt='%g', delimiter=',')
             f.close()
 
 def magic_flipud(values, llat, ulat):
     """
-
+    Flips the latitudes into reverse order
     """
     dlat = ulat - llat
     lat_diff = values[:, 1] - llat
@@ -212,11 +218,11 @@ if __name__ == "__main__":
         # create the output directory immediately. Raise an error if
         # it already exists
         os.makedirs(args.output_dir)
-        gmfc = parse_gmfs_file(args.input_file)
+        gmfc, smlt_path, gsim_path = parse_gmfs_file(args.input_file)
         if args.to_netcdf:
             save_gmfs_to_netcdf(gmfc, args.output_dir, args.to_mmi,
                                 args.spacing, args.cleanup, args.magic)    
         else:
-            save_gmfs_to_csv(gmfc, args.output_dir)
+            save_gmfs_to_csv(gmfc, args.output_dir, smlt_path, gsim_path)
     else:
         parser.print_usage()
