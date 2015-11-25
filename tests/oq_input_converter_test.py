@@ -38,13 +38,12 @@
 #
 # The GEM Foundation, and the authors of the software, assume no liability for
 # use of the software.
-
 import os
 import subprocess
 import unittest
-import numpy as np
 
 BASEPATH = os.path.join(os.path.dirname(__file__), os.path.pardir, "oq_input")
+
 
 class SiteModelConverterTestCase(unittest.TestCase):
     """
@@ -60,13 +59,13 @@ class SiteModelConverterTestCase(unittest.TestCase):
         """
 
         """
-        self.input_file = os.path.join(os.path.dirname(__file__),
-                                       "..", "sample_data",
-                                       "sample_site_model.xml")
+        input_file = os.path.join(os.path.dirname(__file__),
+                                  "..", "sample_data",
+                                  "sample_site_model.xml")
         exit_code = subprocess.call(["python",
                                      self.prog,
                                      "--input-xml-file",
-                                     self.input_file,
+                                     input_file,
                                      "--output-csv-file",
                                      "dummy_site.csv"])
         self.assertEqual(exit_code, 0)
@@ -77,13 +76,13 @@ class SiteModelConverterTestCase(unittest.TestCase):
         """
 
         """
-        self.input_file = os.path.join(os.path.dirname(__file__),
-                                       "..", "sample_data",
-                                       "sample_site_model.csv")
+        input_file = os.path.join(os.path.dirname(__file__),
+                                  "..", "sample_data",
+                                  "sample_site_model.csv")
         exit_code = subprocess.call(["python",
                                      self.prog,
                                      "--input-csv-file",
-                                     self.input_file,
+                                     input_file,
                                      "--output-xml-file",
                                      "dummy_site.xml"])
         self.assertEqual(exit_code, 0)
@@ -94,17 +93,17 @@ class SiteModelConverterTestCase(unittest.TestCase):
         """
 
         """
-        self.input_file = os.path.join(os.path.dirname(__file__),
-                                       "..", "sample_data",
-                                       "sample_site_model.xml")
+        input_file = os.path.join(os.path.dirname(__file__),
+                                  "..", "sample_data",
+                                  "sample_site_model.xml")
         exit_code = subprocess.call(["python",
                                      self.prog,
                                      "--input-xml-file",
-                                     self.input_file,
+                                     input_file,
                                      "--output-csv-file",
                                      "dummy_site.csv"])
         self.assertEqual(exit_code, 0)
-        
+
         exit_code = subprocess.call(["python",
                                      self.prog,
                                      "--input-csv-file",
@@ -143,7 +142,7 @@ class SourceModelShapefileConverterTestCase(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         # Cleanup
         subprocess.call(["rm", "-r", "source_shp"])
-        
+
     def test_xml_to_shp_with_validation(self):
         """
         Tests the conversion to shapefile - with validation
@@ -196,7 +195,6 @@ class SourceModelShapefileConverterTestCase(unittest.TestCase):
         subprocess.call(["rm", "-r", "source_shp"])
         subprocess.call(["rm", "-r", "dummy1.xml"])
 
-
     def test_shp_to_xml_validation(self):
         """
         """
@@ -210,7 +208,6 @@ class SourceModelShapefileConverterTestCase(unittest.TestCase):
             "--output-file",
             os.path.join("source_shp", "src_model_files"),
             "--validate"])
-
 
         # Run test for all shapefiles
         point_file = os.path.join("source_shp", "src_model_files" + "_point")
@@ -232,4 +229,3 @@ class SourceModelShapefileConverterTestCase(unittest.TestCase):
         # cleanup
         subprocess.call(["rm", "-r", "source_shp"])
         subprocess.call(["rm", "-r", "dummy1.xml"])
-
