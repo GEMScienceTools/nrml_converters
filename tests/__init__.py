@@ -1,5 +1,27 @@
-import runpy
 import sys
+import os
+import shutil
+import runpy
+
+
+def gem_rmtree(path, is_mandatory=True):
+    try:
+        shutil.rmtree(path)
+    except OSError:
+        if is_mandatory:
+            raise
+        else:
+            pass
+
+
+def gem_unlink(path, is_mandatory=False):
+    try:
+        os.unlink(path)
+    except OSError:
+        if is_mandatory:
+            raise
+        else:
+            pass
 
 
 def gem_run_script(prog, args):
