@@ -47,8 +47,10 @@ Each test tests only for successful execution, not for correctness or speed
 import os
 import subprocess
 import unittest
+from tests import gem_run_script
 
 BASEPATH = os.path.join(os.path.dirname(__file__), os.path.pardir, "oq_output")
+
 
 class HazardCurveConverterTestCase(unittest.TestCase):
     """
@@ -64,13 +66,11 @@ class HazardCurveConverterTestCase(unittest.TestCase):
         """
         Tests the execution without plotting
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-file",
-                                     "dummy_hazard_curve"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-file",
+                                   self.input_file,
+                                   "--output-file",
+                                   "dummy_hazard_curve"])
+
         # Cleanup
         subprocess.call(["rm", "dummy_hazard_curve.csv"])
 
@@ -78,15 +78,13 @@ class HazardCurveConverterTestCase(unittest.TestCase):
         """
         Tests the execution with plotting
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-file",
-                                     "dummy_hazard_curve",
-                                     "--plot-curves",
-                                     "True"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-file",
+                                   self.input_file,
+                                   "--output-file",
+                                   "dummy_hazard_curve",
+                                   "--plot-curves",
+                                   "True"])
+
         # Cleanup
         subprocess.call(["rm", "-r", "dummy_hazard_curve"])
         subprocess.call(["rm", "dummy_hazard_curve.csv"])
@@ -98,20 +96,19 @@ class HazardMapConverterTestCase(unittest.TestCase):
         self.input_file = os.path.join(os.path.dirname(__file__),
                                        "..", "sample_data",
                                        "hazard_map.xml")
-    
+
     def test_hazard_map_converter(self):
         """
         Tests the hazard map converter
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-file",
-                                     "dummy_hazard_map"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-file",
+                                   self.input_file,
+                                   "--output-file",
+                                   "dummy_hazard_map"])
+
         # Cleanup
         subprocess.call(["rm", "dummy_hazard_map.csv"])
+
 
 class UHSConverterTestCase(unittest.TestCase):
     """
@@ -122,37 +119,33 @@ class UHSConverterTestCase(unittest.TestCase):
         self.input_file = os.path.join(os.path.dirname(__file__),
                                        "..", "sample_data",
                                        "uniform_hazard_spectra_short.xml")
-    
+
     def test_uhs_converter_wo_plotting(self):
         """
         Tests the execution without plotting
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-file",
-                                     "dummy_uhs"])
-        self.assertEqual(exit_code, 0)
+
+        gem_run_script(self.prog, ["--input-file", self.input_file,
+                                   "--output-file", "dummy_uhs"])
+
         # Cleanup
         subprocess.call(["rm", "dummy_uhs.csv"])
-    
+
     def test_uhs_converter_plotting(self):
         """
         Tests the execution with plotting
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-file",
-                                     "dummy_uhs",
-                                     "--plot-spectra",
-                                     "True"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-file",
+                                   self.input_file,
+                                   "--output-file",
+                                   "dummy_uhs",
+                                   "--plot-spectra",
+                                   "True"])
+
         # Cleanup
         subprocess.call(["rm", "-r", "dummy_uhs"])
         subprocess.call(["rm", "dummy_uhs.csv"])
+
 
 class ScenarioGMFConverterTestCase(unittest.TestCase):
     """
@@ -168,13 +161,11 @@ class ScenarioGMFConverterTestCase(unittest.TestCase):
         """
         Tests scenario gmf execution
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-dir",
-                                     "dummy_scenario_gmf"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-file",
+                                   self.input_file,
+                                   "--output-dir",
+                                   "dummy_scenario_gmf"])
+
         # Cleanup
         subprocess.call(["rm", "-r", "dummy_scenario_gmf"])
 
@@ -193,15 +184,14 @@ class EventSetGMFConverterTestCase(unittest.TestCase):
         """
         Tests the execution of the gmf set converter
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-dir",
-                                     "dummy_gmf_set"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-file",
+                                   self.input_file,
+                                   "--output-dir",
+                                   "dummy_gmf_set"])
+
         # Cleanup
         subprocess.call(["rm", "-r", "dummy_gmf_set"])
+
 
 class EventSetConverterTestCase(unittest.TestCase):
     """
@@ -217,13 +207,11 @@ class EventSetConverterTestCase(unittest.TestCase):
         """
         Tests the execution of the gmf set converter
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-dir",
-                                     "dummy_event_set"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-file",
+                                   self.input_file,
+                                   "--output-dir",
+                                   "dummy_event_set"])
+
         # Cleanup
         subprocess.call(["rm", "-r", "dummy_event_set"])
 
@@ -242,12 +230,10 @@ class DisaggregationConverterTestCase(unittest.TestCase):
         """
         Tests the execution of the disaggregation converter
         """
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-file",
-                                     self.input_file,
-                                     "--output-dir",
-                                     "dummy_disag"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-file",
+                                   self.input_file,
+                                   "--output-dir",
+                                   "dummy_disag"])
+
         # Cleanup
         subprocess.call(["rm", "-r", "dummy_disag"])
