@@ -143,8 +143,8 @@ class UHSConverterTestCase(unittest.TestCase):
         Tests the execution with plotting
         """
         gem_rmtree("dummy_uhs")
-        gem_unlink("dummy_uhs.csv"
-)
+        gem_unlink("dummy_uhs.csv")
+
         gem_run_script(self.prog, ["--input-file",
                                    self.input_file,
                                    "--output-file",
