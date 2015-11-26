@@ -39,8 +39,8 @@
 # The GEM Foundation, and the authors of the software, assume no liability for
 # use of the software.
 import os
-import subprocess
 import unittest
+from tests import gem_run_script, gem_rmtree, gem_unlink
 
 BASEPATH = os.path.join(os.path.dirname(__file__), os.path.pardir, "oq_input")
 
@@ -59,60 +59,54 @@ class SiteModelConverterTestCase(unittest.TestCase):
         """
 
         """
+        gem_unlink("dummy_site.csv")
+
         input_file = os.path.join(os.path.dirname(__file__),
                                   "..", "sample_data",
                                   "sample_site_model.xml")
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-xml-file",
-                                     input_file,
-                                     "--output-csv-file",
-                                     "dummy_site.csv"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-xml-file",
+                                   input_file,
+                                   "--output-csv-file",
+                                   "dummy_site.csv"])
         # cleanup
-        subprocess.call(["rm", "dummy_site.csv"])
+        gem_unlink("dummy_site.csv", True)
 
     def test_csv_to_xml(self):
         """
 
         """
+        gem_unlink("dummy_site.xml")
         input_file = os.path.join(os.path.dirname(__file__),
                                   "..", "sample_data",
                                   "sample_site_model.csv")
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-csv-file",
-                                     input_file,
-                                     "--output-xml-file",
-                                     "dummy_site.xml"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-csv-file",
+                                   input_file,
+                                   "--output-xml-file",
+                                   "dummy_site.xml"])
         # cleanup
-        subprocess.call(["rm", "dummy_site.xml"])
+        gem_unlink("dummy_site.xml", True)
 
     def test_roundtrip(self):
         """
 
         """
+        gem_unlink("dummy_site.csv")
+        gem_unlink("dummy_site2.xml")
         input_file = os.path.join(os.path.dirname(__file__),
                                   "..", "sample_data",
                                   "sample_site_model.xml")
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-xml-file",
-                                     input_file,
-                                     "--output-csv-file",
-                                     "dummy_site.csv"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-xml-file",
+                                   input_file,
+                                   "--output-csv-file",
+                                   "dummy_site.csv"])
 
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-csv-file",
-                                     "dummy_site.csv",
-                                     "--output-xml-file",
-                                     "dummy_site2.xml"])
-        self.assertEqual(exit_code, 0)
-        subprocess.call(["rm", "dummy_site.csv"])
-        subprocess.call(["rm", "dummy_site2.xml"])
+        gem_run_script(self.prog, ["--input-csv-file",
+                                   "dummy_site.csv",
+                                   "--output-xml-file",
+                                   "dummy_site2.xml"])
+
+        gem_unlink("dummy_site.csv", True)
+        gem_unlink("dummy_site2.xml", True)
 
 
 class SourceModelShapefileConverterTestCase(unittest.TestCase):
@@ -131,44 +125,42 @@ class SourceModelShapefileConverterTestCase(unittest.TestCase):
         Tests the conversion to shapefile - without validation
         """
         #output_dir = os.path.join(os.path.dirname(__file__), "outputs")
-        subprocess.call(["mkdir", "source_shp"])
-        exit_code = subprocess.call([
-            "python",
-            self.prog,
+        gem_rmtree("source_shp")
+        os.mkdir("source_shp")
+
+        gem_run_script(self.prog, [
             "--input-nrml-file",
             self.input_file,
             "--output-file",
             os.path.join("source_shp", "src_model_files")])
-        self.assertEqual(exit_code, 0)
         # Cleanup
-        subprocess.call(["rm", "-r", "source_shp"])
+        gem_rmtree("source_shp")
 
     def test_xml_to_shp_with_validation(self):
         """
         Tests the conversion to shapefile - with validation
         """
         #output_dir = os.path.join(os.path.dirname(__file__), "outputs")
-        subprocess.call(["mkdir", "source_shp"])
-        exit_code = subprocess.call([
-            "python",
-            self.prog,
+        gem_rmtree("source_shp")
+        os.mkdir("source_shp")
+        gem_run_script(self.prog, [
             "--input-nrml-file",
             self.input_file,
             "--output-file",
             os.path.join("source_shp", "src_model_files"),
             "--validate"])
-        self.assertEqual(exit_code, 0)
         # Cleanup
-        subprocess.call(["rm", "-r", "source_shp"])
+        gem_rmtree("source_shp", True)
 
     def test_shp_to_xml_no_validation(self):
         """
         """
+        gem_unlink("dummy1.xml")
+        gem_rmtree("source_shp")
+        os.mkdir("source_shp")
+
         # Build shapefiles
-        subprocess.call(["mkdir", "source_shp"])
-        exit_code = subprocess.call([
-            "python",
-            self.prog,
+        gem_run_script(self.prog, [
             "--input-nrml-file",
             self.input_file,
             "--output-file",
@@ -180,29 +172,28 @@ class SourceModelShapefileConverterTestCase(unittest.TestCase):
         simple_file = os.path.join("source_shp", "src_model_files" + "_simple")
         complex_file = os.path.join("source_shp",
                                     "src_model_files" + "_complex")
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-shp-files",
-                                     point_file,
-                                     area_file,
-                                     simple_file,
-                                     complex_file,
-                                     "--output-file",
-                                     "dummy1.xml"])
+        gem_run_script(self.prog, [
+            "--input-shp-files",
+            point_file,
+            area_file,
+            simple_file,
+            complex_file,
+            "--output-file",
+            "dummy1.xml"])
 
-        self.assertEqual(exit_code, 0)
         # cleanup
-        subprocess.call(["rm", "-r", "source_shp"])
-        subprocess.call(["rm", "-r", "dummy1.xml"])
+        gem_rmtree("source_shp", True)
+        gem_unlink("dummy1.xml", True)
 
     def test_shp_to_xml_validation(self):
         """
         """
         # Build shapefiles
-        subprocess.call(["mkdir", "source_shp"])
-        exit_code = subprocess.call([
-            "python",
-            self.prog,
+        gem_unlink("dummy1.xml")
+        gem_rmtree("source_shp")
+        os.mkdir("source_shp")
+
+        gem_run_script(self.prog, [
             "--input-nrml-file",
             self.input_file,
             "--output-file",
@@ -215,17 +206,14 @@ class SourceModelShapefileConverterTestCase(unittest.TestCase):
         simple_file = os.path.join("source_shp", "src_model_files" + "_simple")
         complex_file = os.path.join("source_shp",
                                     "src_model_files" + "_complex")
-        exit_code = subprocess.call(["python",
-                                     self.prog,
-                                     "--input-shp-files",
-                                     point_file,
-                                     area_file,
-                                     simple_file,
-                                     complex_file,
-                                     "--output-file",
-                                     "dummy1.xml",
-                                     "--validate"])
-        self.assertEqual(exit_code, 0)
+        gem_run_script(self.prog, ["--input-shp-files",
+                                   point_file,
+                                   area_file,
+                                   simple_file,
+                                   complex_file,
+                                   "--output-file",
+                                   "dummy1.xml",
+                                   "--validate"])
         # cleanup
-        subprocess.call(["rm", "-r", "source_shp"])
-        subprocess.call(["rm", "-r", "dummy1.xml"])
+        gem_unlink("dummy1.xml", True)
+        gem_rmtree("source_shp", True)
