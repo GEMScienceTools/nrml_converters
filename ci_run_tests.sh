@@ -184,25 +184,6 @@ usage () {
 }
 
 #
-#  _wait_ssh <lxc_ip> - wait until the new lxc ssh daemon is ready
-#      <lxc_ip>    the IP address of lxc instance
-#
-_wait_ssh () {
-    local lxc_ip="$1"
-
-    for i in $(seq 1 20); do
-        if ssh $lxc_ip "echo begin"; then
-            break
-        fi
-        sleep 2
-    done
-    if [ $i -eq 20 ]; then
-        return 1
-    fi
-}
-
-
-#
 #  _devtest_innervm_run <lxc_ip> <branch> - part of source test performed on lxc
 #                     the following activities are performed:
 #                     - extracts dependencies from oq-{engine,hazardlib, ..} debian/control
@@ -278,7 +259,7 @@ fi
     # install sources of this package
     git archive --prefix ${GEM_GIT_PACKAGE}/ HEAD | ssh $lxc_ip "tar xv"
 
-    ssh $lxc_ip "export PYTHONPATH="\$PWD/oq-hazardlib:\$PWD/oq-risklib" ; cd $GEM_GIT_PACKAGE ; nosetests --with-xunit -v --with-coverage || true"
+    ssh $lxc_ip "export DISPLAY=\"$guest_display\"; export PYTHONPATH=\"\$PWD/oq-hazardlib:\$PWD/oq-risklib\" ; cd \"$GEM_GIT_PACKAGE\" ; nosetests --with-xunit -v --with-coverage || true"
 
     trap ERR
 
@@ -369,6 +350,39 @@ _lxc_name_and_ip_get()
     echo "SUCCESSFULLY RUNNED $lxc_name ($lxc_ip)"
 
     return 0
+}
+
+#
+#  _wait_ssh <lxc_ip> - wait until the new lxc ssh daemon is ready
+#      <lxc_ip>    the IP address of lxc instance
+#
+_wait_ssh () {
+    local lxc_ip="$1"
+
+    for i in $(seq 1 20); do
+        if ssh $lxc_ip "echo begin"; then
+            break
+        fi
+        sleep 2
+    done
+    if [ $i -eq 20 ]; then
+        return 1
+    fi
+}
+
+
+# get guest DISPLAY value
+_guest_display_get () {
+    local lxc_ip="$1"
+
+    ssh $lxc_ip 'x_list="$(ls /tmp/.X*-lock)"
+for x in $(echo "$x_list"); do
+    if sudo kill -0 $(cat $x) >/dev/null 2>&1; then
+        echo "$x" | sed '"'"'s@^/tmp/.X@:@g;s@-lock$@@g'"'"'
+        return 0
+    fi
+done
+return 1'
 }
 
 deps_check_or_clone () {
@@ -475,6 +489,8 @@ devtest_run () {
     _lxc_name_and_ip_get /tmp/packager.eph.$$.log
 
     _wait_ssh $lxc_ip
+    guest_display="$(_guest_display_get "$lxc_ip")"
+
     set +e
     _devtest_innervm_run "$lxc_ip" "$branch"
     inner_ret=$?
