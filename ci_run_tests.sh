@@ -377,7 +377,6 @@ _guest_display_get () {
 
     ssh $lxc_ip 'x_list="$(ls /tmp/.X*-lock)"
 for x in $(echo "$x_list"); do
-    cat $x
     if sudo kill -0 $(cat $x) >/dev/null 2>&1; then
         echo "$x" | sed '"'"'s@^/tmp/.X@:@g;s@-lock$@@g'"'"'
         return 0
