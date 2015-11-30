@@ -379,10 +379,10 @@ _guest_display_get () {
 for x in $(echo "$x_list"); do
     if sudo kill -0 $(cat $x) >/dev/null 2>&1; then
         echo "$x" | sed '"'"'s@^/tmp/.X@:@g;s@-lock$@@g'"'"'
-        return 0
+        exit 0
     fi
 done
-return 1'
+exit 1'
 }
 
 deps_check_or_clone () {
