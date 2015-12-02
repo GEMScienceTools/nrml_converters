@@ -165,8 +165,9 @@ def save_uhs_to_csv(nrml_uhs_file, file_name_root, plot_spectra=False):
     """
     output_file = '%s.csv' % file_name_root
     if os.path.isfile(output_file):
-        raise ValueError('Output file already exists.'
-                         ' Please specify different name or remove old file')
+        raise ValueError('Output file already exists [%s].'
+                         ' Please specify different name or '
+                         'remove old file' % output_file)
 
     metadata, periods, values = parse_nrml_uhs_curves(nrml_uhs_file)
 
@@ -212,7 +213,6 @@ def set_up_arg_parser():
 
 
 if __name__ == "__main__":
-
     parser = set_up_arg_parser()
     args = parser.parse_args()
 
