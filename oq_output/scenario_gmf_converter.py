@@ -53,44 +53,88 @@ from collections import OrderedDict
 from openquake.commonlib.nrml import read_lazy
 from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
-NRML='{http://openquake.org/xmlns/nrml/0.4}'
+NRML='{http://openquake.org/xmlns/nrml/0.5}'
 
 
 def parse_gmfs_file(file_name):
     """
     Parses the NRML 0.4 GMF set file
     """
-    gmfs = OrderedDict()
+
     node_set = read_lazy(file_name, "node")[0]
-    for gmf_node in node_set.nodes:
-        # Parse field
-        gmf = []
-        imt = gmf_node.attrib["IMT"]
-        for val in gmf_node.nodes:
-            gmf.append([float(val.attrib["lon"]),
-                        float(val.attrib["lat"]),
-                        float(val.attrib["gmv"])])
-        if imt in gmfs.keys():
-            gmfs[imt].append(numpy.array(gmf))
-        else:
-            gmfs[imt] = [numpy.array(gmf)]
-    return gmfs
+    gmf_set = []
+    gmfs = []
+    imt_list = []
+    rup_id_list = []
+
+    for gmfset_node in node_set:
+        scenario_keys = []
+        for gmf_node in gmfset_node:    
+            # Parse field
+            imt = gmf_node["IMT"]
+            if "SA" in imt:
+                imt = "SA({:s})".format(str(gmf_node["saPeriod"]))
+            if not imt in imt_list:
+                if len(rup_id_list):
+                    gmfs.append((imt_list[-1], OrderedDict(rup_id_list)))
+                    rup_id_list = []
+                imt_list.append(imt)
+
+            rup_id = gmf_node["ruptureId"]
+            if not rup_id in scenario_keys:
+                scenario_keys.append(rup_id)
+            gmf = [[val["lon"], val["lat"], val["gmv"]] for val in gmf_node]
+            rup_id_list.append((rup_id, numpy.array(gmf)))
+        gmfs.append((imt, OrderedDict(rup_id_list)))
+        gmfs = OrderedDict(gmfs)
+        # Re-order to give in terms of scenario ids
+        scenarios = []
+        for rup_id in scenario_keys:
+            # Determine the IMTs available for the scenario
+
+            scenario_gmfs = {
+                "IMT": ["lon", "lat"] + imt_list,
+                "GMFs": numpy.zeros([len(gmf), len(imt_list) + 2])}
+            for i, imt in enumerate(imt_list):
+                scenario_gmfs["GMFs"][:, i + 2] = gmfs[imt][rup_id][:, 2]
+            scenario_gmfs["GMFs"][:, :2] = gmfs[imt][rup_id][:, :2]
+            scenarios.append((rup_id, scenario_gmfs))
+        gmf_set.append((gmfset_node["stochasticEventSetId"],
+                        OrderedDict(scenarios)))
+        gmfs = []
+        imt_list = []
+    return OrderedDict(gmf_set)
 
 
 def save_gmfs_to_csv(gmfs, out_dir):
     """
     Save GMFs to .csv files
     """
-    for imt in gmfs.keys():
-        dir_name = '%s/GMFS_%s' % (out_dir, imt)
+    for ses_id in gmfs.keys():
+        dir_name = os.path.join(out_dir, "SES{:s}".format(ses_id))
         os.makedirs(dir_name)
-        for i, gmf in enumerate(gmfs[imt]):
-            header = 'lon,lat,value'
-            fname = '%s/gmf_%s.csv' % (dir_name, (i + 1))
-            f = open(fname, 'w')
-            f.write(header+'\n')
-            numpy.savetxt(f, numpy.array(gmf), fmt='%g', delimiter=',')
+        # One file per rupture scenario
+        for rup_id in gmfs[ses_id].keys():
+            fname = os.path.join(dir_name,
+                "ses{:s}_{:s}.csv".format(ses_id,
+                                          rup_id.replace("-", "_")))
+            header = ",".join(gmfs[ses_id][rup_id]["IMT"])
+            f = open(fname, "w")
+            f.write(header+"\n")
+            numpy.savetxt(f, gmfs[ses_id][rup_id]["GMFs"], fmt="%g",
+                          delimiter=",")
             f.close()
+
+#    for imt in gmfs.keys():
+#        dir_name = '%s/GMFS_%s' % (out_dir, imt)
+#        os.makedirs(dir_name)
+#        for i, gmf in enumerate(gmfs[imt]):
+#            header = 'lon,lat,value'
+#            fname = '%s/gmf_%s.csv' % (dir_name, (i + 1))
+#            f = open(fname, 'w')
+#            f.write(header+'\n')
+#            numpy.savetxt(f, numpy.array(gmf), fmt='%g', delimiter=',')
+#            f.close()
 
 def magic_flipud(values, llat, ulat):
     """
@@ -108,47 +152,97 @@ def save_gmfs_to_netcdf(gmfs, out_dir, to_mmi=False, resolution="10k",
     """
     Save ground motion fields to netCDF files for use in GMT and/or QGis
     """
-    for imt in gmfs.keys():
-        dir_name = '%s/GMFS_%s' % (out_dir, imt)
+    for ses_id in gmfs.keys():
+        dir_name = os.path.join(out_dir, "SES{:s}".format(ses_id))
         os.makedirs(dir_name)
-        if to_mmi:
-            if imt in AK2007.keys():
-                get_mmi = True
-            else:
-                print "Cannot convert %s to MMI" % imt
-                get_mmi = False
-        else:
-            get_mmi = False
-            
-        for i, gmf in enumerate(gmfs[imt]):
-            f_stem = '%s/gmf_%s' % (dir_name, (i + 1))
-            ogmf = numpy.array(gmf)
-            if magic:
-                ogmf = magic_flipud(ogmf,
-                                    numpy.min(ogmf[:, 1]),
-                                    numpy.max(ogmf[:, 1]))
-            if get_mmi:
-                ogmf[:, 2], sigma = atkinson_kaka_2007_rsa2mmi(imt, ogmf[:, 2])
-            f = open(f_stem + ".xyz", "w")
-            numpy.savetxt(f, ogmf, fmt="%g", delimiter=" ")
-            f.close()
-            # Generate GMT xyz2grd string
-            llon = numpy.min(ogmf[:, 0])
-            ulon = numpy.max(ogmf[:, 0])
-            llat = numpy.min(ogmf[:, 1])
-            ulat = numpy.max(ogmf[:, 1])
-            istring = " -I%s/%s" % (resolution, resolution)
-            rstring = " -R" + "{:.5f}/".format(llon) + "{:.5f}/".format(ulon) +\
-                "{:.5f}/".format(llat) + "{:.5f}".format(ulat)
-            if "SA" in imt:
-                mod1 = f_stem.replace("(", "\(")
-                f_stem = mod1.replace(")", "\)")
-                
-            command_string = ("xyz2grd %s -G%s" % (f_stem + ".xyz",
-                              f_stem + ".NC")) + istring + rstring
-            os.system(command_string)
-    if cleanup:
-        os.system("find . -name '*.xyz' -type f -delete")
+        for rup_id in gmfs[ses_id].keys():
+            #lon = gmfs[ses_id][rup_id]["GMFs"][:, 0]
+            lat = gmfs[ses_id][rup_id]["GMFs"][:, 1]
+            #gmvs = gmfs[ses_id][rup_id]["GMFs"][:, 2:]
+            ogmf = gmfs[ses_id][rup_id]["GMFs"]
+           
+            for i, imt in enumerate(gmfs[ses_id][rup_id]["IMT"][2:]):
+                if to_mmi:
+                    if imt in AK2007.keys():
+                        get_mmi = True
+                    else:
+                        print "Cannot convert %s to MMI" % imt
+                        get_mmi = False
+                else:
+                    get_mmi = False
+                f_stem = os.path.join(dir_name, 
+                    "ses{:s}_{:s}_{:s}".format(ses_id,
+                                               rup_id.replace("-", "_"),
+                                               imt))
+                if magic:
+                    ogmf = magic_flipud(ogmf, numpy.min(lat), numpy.max(lat))
+                if get_mmi:
+                    ogmf[:, 2], sigma = atkinson_kaka_2007_rsa2mmi(imt,
+                                                                   ogmf[:, 2])
+                    f_stem = f_stem.replace(imt, "{:s}2MMI".format(imt))
+                f = open(f_stem + ".xyz", "w")
+                numpy.savetxt(f, ogmf, fmt="%g", delimiter=" ")
+                f.close()
+                # Generate GMT xyz2grd string
+                llon = numpy.min(ogmf[:, 0])
+                ulon = numpy.max(ogmf[:, 0])
+                llat = numpy.min(ogmf[:, 1])
+                ulat = numpy.max(ogmf[:, 1])
+                istring = " -I%s/%s" % (resolution, resolution)
+                rstring = " -R" + "{:.5f}/".format(llon) + \
+                    "{:.5f}/".format(ulon) +\
+                    "{:.5f}/".format(llat) + "{:.5f}".format(ulat)
+                if "SA" in imt:
+                    mod1 = f_stem.replace("(", "\(")
+                    f_stem = mod1.replace(")", "\)")
+                    
+                command_string = ("xyz2grd %s -G%s" % (f_stem + ".xyz",
+                                  f_stem + ".NC")) + istring + rstring
+                os.system(command_string)
+        if cleanup:
+            os.system("find . -name '*.xyz' -type f -delete")
+
+#    for imt in gmfs.keys():
+#        dir_name = '%s/GMFS_%s' % (out_dir, imt)
+#        os.makedirs(dir_name)
+#        if to_mmi:
+#            if imt in AK2007.keys():
+#                get_mmi = True
+#            else:
+#                print "Cannot convert %s to MMI" % imt
+#                get_mmi = False
+#        else:
+#            get_mmi = False
+#            
+#        for i, gmf in enumerate(gmfs[imt]):
+#            f_stem = '%s/gmf_%s' % (dir_name, (i + 1))
+#            ogmf = numpy.array(gmf)
+#            if magic:
+#                ogmf = magic_flipud(ogmf,
+#                                    numpy.min(ogmf[:, 1]),
+#                                    numpy.max(ogmf[:, 1]))
+#            if get_mmi:
+#                ogmf[:, 2], sigma = atkinson_kaka_2007_rsa2mmi(imt, ogmf[:, 2])
+#            f = open(f_stem + ".xyz", "w")
+#            numpy.savetxt(f, ogmf, fmt="%g", delimiter=" ")
+#            f.close()
+#            # Generate GMT xyz2grd string
+#            llon = numpy.min(ogmf[:, 0])
+#            ulon = numpy.max(ogmf[:, 0])
+#            llat = numpy.min(ogmf[:, 1])
+#            ulat = numpy.max(ogmf[:, 1])
+#            istring = " -I%s/%s" % (resolution, resolution)
+#            rstring = " -R" + "{:.5f}/".format(llon) + "{:.5f}/".format(ulon) +\
+#                "{:.5f}/".format(llat) + "{:.5f}".format(ulat)
+#            if "SA" in imt:
+#                mod1 = f_stem.replace("(", "\(")
+#                f_stem = mod1.replace(")", "\)")
+#                
+#            command_string = ("xyz2grd %s -G%s" % (f_stem + ".xyz",
+#                              f_stem + ".NC")) + istring + rstring
+#            os.system(command_string)
+#    if cleanup:
+#        os.system("find . -name '*.xyz' -type f -delete")
         
 
 def set_up_arg_parser():

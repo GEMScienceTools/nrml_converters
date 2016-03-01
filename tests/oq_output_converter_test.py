@@ -165,7 +165,7 @@ class ScenarioGMFConverterTestCase(unittest.TestCase):
         self.prog = os.path.join(BASEPATH, "scenario_gmf_converter.py")
         self.input_file = os.path.join(os.path.dirname(__file__),
                                        "..", "sample_data",
-                                       "gmf_scenario.xml")
+                                       "gmf_@_6.xml")
 
     def test_gmf_scenario_converter(self):
         """
