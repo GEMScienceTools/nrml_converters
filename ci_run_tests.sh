@@ -256,6 +256,10 @@ fi
                      cp \$i \$o
                  done"
 
+    # install proper version of pyshp
+    ssh $lxc_ip "set -e
+                 pip install pyshp==1.2.3"
+
     # install sources of this package
     git archive --prefix ${GEM_GIT_PACKAGE}/ HEAD | ssh $lxc_ip "tar xv"
 
