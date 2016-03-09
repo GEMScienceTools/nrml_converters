@@ -42,6 +42,7 @@
 Convert NRML hazard map file to .csv file.
 '''
 
+import re
 import os
 import argparse
 import numpy
@@ -97,7 +98,10 @@ def parse_nrml_hazard_map(nrml_hazard_map):
         else:
             metadata[option] = None
     if "SA" in metadata["imt"]:
-        metadata["sa_period"] = node_set.attrib['saPeriod']
+        imt_str =  node_set.attrib['IMT']
+        m = re.search('.*\((\d*\.\d*)\).*', imt_str)
+        period = m.group(1)
+        metadata["sa_period"] = period
         metadata['sa_damping'] = node_set.attrib['saDamping']
     values = []
     for node in node_set.nodes:

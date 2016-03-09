@@ -12,7 +12,7 @@
 # along with OpenQuake. If not, see <http://www.gnu.org/licenses/>
 #
 # DISCLAIMER
-# 
+#
 # The software nrml_convertes provided herein is released as a prototype
 # implementation on behalf of scientists and engineers working within the GEM
 # Foundation (Global Earthquake Model).
@@ -47,6 +47,8 @@ Each test tests only for successful execution, not for correctness or speed
 import os
 import unittest
 from tests import gem_run_script, gem_rmtree, gem_unlink
+
+from oq_output.hazard_map_converter import parse_nrml_hazard_map
 
 BASEPATH = os.path.join(os.path.dirname(__file__), os.path.pardir, "oq_output")
 
@@ -95,6 +97,7 @@ class HazardCurveConverterTestCase(unittest.TestCase):
 
 
 class HazardMapConverterTestCase(unittest.TestCase):
+
     def setUp(self):
         self.prog = os.path.join(BASEPATH, "hazard_map_converter.py")
         self.input_file = os.path.join(os.path.dirname(__file__),
@@ -106,14 +109,23 @@ class HazardMapConverterTestCase(unittest.TestCase):
         Tests the hazard map converter
         """
         gem_unlink("dummy_hazard_map.csv")
-
         gem_run_script(self.prog, ["--input-file",
                                    self.input_file,
                                    "--output-file",
                                    "dummy_hazard_map"])
-
         # Cleanup
         gem_unlink("dummy_hazard_map.csv", True)
+
+
+class HazardCurveParsingTestCase(unittest.TestCase):
+
+    def setUp(self):
+        filename = "hazard_map-0.1-SA(0.1)-smltp_b11_b21-gsimltp_b11_b21_123.xml"
+        self.input_file = os.path.join(os.path.dirname(__file__), "data",
+                                       filename)
+
+    def test_parse_map(self):
+        parse_nrml_hazard_map(self.input_file)
 
 
 class UHSConverterTestCase(unittest.TestCase):
