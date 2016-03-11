@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<nrml
+xmlns="http://openquake.org/xmlns/nrml/0.5"
+xmlns:gml="http://www.opengis.net/gml"
+>
+    <hazardMap
+    IMT="SA(0.1)"
+    gsimTreePath="b11_b21"
+    investigationTime="50.0"
+    poE="0.1"
+    sourceModelTreePath="b11_b21"
+    >
+        <node iml="0.0" lat="-17.0943" lon="19.8259"/>
+        <node iml="0.0144457" lat="-16.0943" lon="19.8259"/>
+        <node iml="0.0140109" lat="10.9057" lon="50.8259"/>
+        <node iml="0.0323551" lat="11.4057" lon="50.8259"/>
+        <node iml="0.0763439" lat="11.9057" lon="50.8259"/>
+        <node iml="0.0" lat="10.4057" lon="51.3259"/>
+        <node iml="0.00952254" lat="10.9057" lon="51.3259"/>
+        <node iml="0.0248172" lat="11.4057" lon="51.3259"/>
+        <node iml="0.0559027" lat="11.9057" lon="51.3259"/>
+    </hazardMap>
+</nrml>

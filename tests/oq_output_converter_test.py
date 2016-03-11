@@ -125,7 +125,8 @@ class HazardCurveParsingTestCase(unittest.TestCase):
                                        filename)
 
     def test_parse_map(self):
-        parse_nrml_hazard_map(self.input_file)
+        metadata, values = parse_nrml_hazard_map(self.input_file)
+        self.assertEqual(metadata["sa_period"], '0.1')
 
 
 class UHSConverterTestCase(unittest.TestCase):
