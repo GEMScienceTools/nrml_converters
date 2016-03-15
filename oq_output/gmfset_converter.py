@@ -52,10 +52,10 @@ import argparse
 import numpy
 from collections import OrderedDict
 #from lxml import etree
-from openquake.commonlib.nrml import read_lazy
+from openquake.commonlib.nrml import read_lazy, read
 from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
-NRML='{http://openquake.org/xmlns/nrml/0.4}'
+NRML='{http://openquake.org/xmlns/nrml/0.5}'
 
 
 class GMF(object):
@@ -90,22 +90,37 @@ class GmfCollection(object):
         self.gmfss = gmfss
 
 
+#def parse_gmfc_file(file_name):
+#    """
+#    Parse NRML 0.4 GMF collection file.
+#    """
+#    node_set = read_lazy(file_name, "node")[0]
+#    gmfss = []
+#    for element in node_set:
+#        if "gmfSet" in element.tag:
+#            gmfss.append(parse_gmf_set(element))
+#        elif "gmfCollection" in element.tag:
+#            gmfc = GmfCollection(element.attrib["sourceModelTreePath"],
+#                                 element.attrib["gsimTreePath"],
+#                                 None)
+#        else:
+#            pass
+#    gmfc.gmfss = gmfss
+#    return gmfc
+
 def parse_gmfc_file(file_name):
     """
     Parse NRML 0.4 GMF collection file.
     """
-    node_set = read_lazy(file_name, "node")
+    node_set = read(file_name)[0]
     gmfss = []
-    for element in node_set:
-        if "gmfSet" in element.tag:
-            gmfss.append(parse_gmf_set(element))
-        elif "gmfCollection" in element.tag:
-            gmfc = GmfCollection(element.attrib["sourceModelTreePath"],
-                                 element.attrib["gsimTreePath"],
-                                 None)
-        else:
-            pass
+    gmfc = GmfCollection(node_set["sourceModelTreePath"],
+                         node_set["gsimTreePath"],
+                         None)
+    for gmf_set in node_set:
+        gmfss.append(parse_gmf_set(gmf_set))
     gmfc.gmfss = gmfss
+    #for gmf_col_set in node_set:
     return gmfc
 
 
@@ -138,7 +153,7 @@ def parse_gmf(gmf_node):
     IMT = gmf_node.attrib["IMT"]
     saDamping = None
     saPeriod = None
-    if "IMT" == "SA":
+    if IMT == "SA":
         saDamping = gmf_node.attrib["saDamping"]
         saPeriod = gmf_node.attrib["saPeriod"]
     values = []
@@ -165,6 +180,7 @@ def save_gmfs_to_csv(gmf_collection, out_dir):
                 header = '# smltp=%s, gsimltp=%s' % \
                     (gmf_collection.sm_tp, gmf_collection.gsim_tp)
                 header += '\n# IMT=%s' % imt
+                header += '\n# ruptureID=%s' % rup_id
                 header += '\nlon,lat,gmf_value'
                 fname = '%s/%s.csv' % (dir_name, rup_id)
                 f = open(fname, 'w')

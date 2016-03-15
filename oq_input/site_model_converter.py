@@ -91,10 +91,14 @@ def csv_to_xml(input_csv, output_xml):
     data = np.genfromtxt(input_csv, delimiter=",", names=True)
     site_nodes = []
     for i in range(0, len(data)):
+        if bool(data["vs30Type"][i]):
+            vs30_type = "measured"
+        else:
+            vs30_type = "inferred"
         site_attrib = [("lon", str(data["longitude"][i])),
                        ("lat", str(data["latitude"][i])),
                        ("vs30", str(data["vs30"][i])),
-                       ("vs30Type", str(bool(data["vs30Type"][i]))),
+                       ("vs30Type", vs30_type),
                        ("z1pt0", str(data["z1pt0"][i])),
                        ("z2pt5", str(data["z2pt5"][i]))]
         if "backarc" in data:
