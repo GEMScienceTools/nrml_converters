@@ -49,7 +49,7 @@ import numpy
 from openquake.commonlib.nrml import read_lazy
 import matplotlib.pyplot as plt
 
-NRML='{http://openquake.org/xmlns/nrml/0.4}'
+NRML='{http://openquake.org/xmlns/nrml/0.5}'
 GML='{http://www.opengis.net/gml}'
 
 

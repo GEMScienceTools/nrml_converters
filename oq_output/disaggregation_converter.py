@@ -52,7 +52,7 @@ from collections import OrderedDict
 from subprocess import call
 from openquake.commonlib.nrml import read
 
-NRML='{http://openquake.org/xmlns/nrml/0.4}'
+NRML='{http://openquake.org/xmlns/nrml/0.5}'
 
 
 def parse_nrml_disaggregation_file(nrml_disaggregation):

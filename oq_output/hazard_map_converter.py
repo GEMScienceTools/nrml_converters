@@ -48,7 +48,7 @@ import argparse
 import numpy
 from openquake.commonlib.nrml import read_lazy
 
-NRML = '{http://openquake.org/xmlns/nrml/0.4}'
+NRML = '{http://openquake.org/xmlns/nrml/0.5}'
 
 AK2007 = {"PGA": {"C1": 2.65, "C2": 1.39, "C3": -1.91, "C4": 4.09,
                   "logy15": 1.69, "sigma1": 1.01, "cfact": 980.665},

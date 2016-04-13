@@ -55,7 +55,7 @@ from openquake.commonlib.node import striptag
 from openquake.commonlib.nrml import read
 from openquake.hazardlib.geo.mesh import RectangularMesh
 
-NRML='{http://openquake.org/xmlns/nrml/0.4}'
+NRML='{http://openquake.org/xmlns/nrml/0.5}'
 
 PLANAR_TAGS = ["{:s}".format(tag)
                for tag in ["topLeft", "topRight", "bottomLeft", "bottomRight"]]
