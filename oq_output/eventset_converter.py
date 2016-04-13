@@ -53,7 +53,6 @@ import numpy
 from lxml import etree
 from openquake.commonlib.node import striptag
 from openquake.commonlib.nrml import read
-
 from openquake.hazardlib.geo.mesh import RectangularMesh
 
 NRML='{http://openquake.org/xmlns/nrml/0.4}'
@@ -83,7 +82,7 @@ def parse_ses_collection(element):
     Parse NRML 0.4 'stochasticEventSetCollection' and return
     class StochasticEventSetCollection.
     """
-    smtp = element.attrib['sourceModelTreePath']
+    #smtp = element.attrib['sourceModelTreePath']
 
     sess = []
     num_ses = 0
@@ -92,7 +91,9 @@ def parse_ses_collection(element):
 
     print 'number of stochastic event sets: %s' % len(sess)
 
-    return StochasticEventSetCollection(smtp, sess)
+    #return StochasticEventSetCollection(smtp, sess)
+    return StochasticEventSetCollection(sess)
+
 
 def parse_ses(element):
     """
@@ -128,6 +129,7 @@ def parse_rup(element):
         else:
             surf = parse_mesh(node)
     return Rupture(ID, magnitude, strike, dip, rake, tectonic_region, surf)
+
 #    
 #    
 #    planar_surfs = element.findall('%splanarSurface' % NRML)
@@ -351,7 +353,8 @@ class StochasticEventSetCollection(object):
     Class representing collection of SESs associated to
     given source model and GSIM logic tree paths.
     """
-    def __init__(self, smtp, sess):
+    def __init__(self, sess):
+#    def __init__(self, smtp, sess):
         data = []
         for ses in sess:
             for rup in ses.rups:
@@ -363,9 +366,12 @@ class StochasticEventSetCollection(object):
                                 (lon, lat) for lon, lat in zip(lons, lats)) \
                                 for lons, lats in zip(multi_lons, multi_lats)
                         )
-                data.append([smtp, ses.ID, rup.ID, rup.magnitude,
+                data.append([ses.ID, rup.ID, rup.magnitude,
                              lon, lat, depth, rup.tect_reg, rup.strike,
                              rup.dip, rup.rake, boundary])
+#                data.append([smtp, ses.ID, rup.ID, rup.magnitude,
+#                             lon, lat, depth, rup.tect_reg, rup.strike,
+#                             rup.dip, rup.rake, boundary])
 
         self.data = numpy.array(data, dtype=object)
 
@@ -382,7 +388,8 @@ def save_sess_to_txt(sesc, output_dir):
         f = open(fname, 'w')
         f.write(header+'\n')
         numpy.savetxt(f, sesc.data[idx, 2 :],
-            fmt='%s\t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s')
+        fmt='t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s')
+#            fmt='%s\t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s')
         f.close()
 
 
