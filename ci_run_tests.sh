@@ -215,13 +215,13 @@ _devtest_innervm_run () {
 
     # add custom packages
     ssh $lxc_ip mkdir -p "repo"
-if [ 0 -eq 1 ]; then
-    scp -r ${GEM_DEB_REPO}/${BUILD_UBUVER}/custom_pkgs $lxc_ip:repo/custom_pkgs
-    ssh $lxc_ip "sudo apt-add-repository \"deb file:/home/ubuntu/repo/custom_pkgs ./\""
+
+    scp -r ${GEM_DEB_REPO}/custom_pkgs $lxc_ip:repo/custom_pkgs
+    ssh $lxc_ip "sudo apt-add-repository \"deb file:/home/ubuntu/repo/custom_pkgs ${BUILD_UBUVER} main\""
 
     ssh $lxc_ip "sudo apt-get update"
     ssh $lxc_ip "sudo apt-get upgrade -y"
-fi
+
     ssh $lxc_ip "sudo apt-get install -y $GEM_LOCAL_DEPS"
 
     old_ifs="$IFS"
