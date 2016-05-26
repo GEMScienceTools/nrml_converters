@@ -36,7 +36,7 @@ fi
 set -e
 GEM_GIT_REPO="git://github.com/gem"
 GEM_GIT_PACKAGE="nrml_converters"
-GEM_GIT_DEPS="oq-hazardlib oq-risklib"
+GEM_GIT_DEPS="oq-hazardlib oq-engine"
 GEM_LOCAL_DEPS="python-nose python-coverage gmt python-pyshp gmt-gshhs-low python-matplotlib python-mpltoolkits.basemap pylint python-lxml"
 
 if [ -z "$GEM_DEB_REPO" ]; then
@@ -263,7 +263,7 @@ _devtest_innervm_run () {
     # install sources of this package
     git archive --prefix ${GEM_GIT_PACKAGE}/ HEAD | ssh $lxc_ip "tar xv"
 
-    ssh $lxc_ip "export DISPLAY=\"$guest_display\"; export PYTHONPATH=\"\$PWD/oq-hazardlib:\$PWD/oq-risklib\" ; cd \"$GEM_GIT_PACKAGE\" ; nosetests --with-xunit -v --with-coverage || true"
+    ssh $lxc_ip "export DISPLAY=\"$guest_display\"; export PYTHONPATH=\"\$PWD/oq-hazardlib:\$PWD/oq-engine\" ; cd \"$GEM_GIT_PACKAGE\" ; nosetests --with-xunit -v --with-coverage || true"
 
     trap ERR
 
