@@ -46,9 +46,9 @@ Correct complex fault sources to comply with Aki and Richards convention.
 import sys
 import numpy
 
+from openquake.risklib import valid
 from openquake.commonlib import nrml
 from openquake.commonlib.node import node_from_xml
-from openquake.commonlib import valid
 
 from openquake.hazardlib.geo.line import Line
 from openquake.hazardlib.geo.point import Point
@@ -57,6 +57,7 @@ from openquake.hazardlib import mfd
 
 AKI_RICH_ERR_MSG = 'Surface does not conform with Aki & Richards convention'
 WRONG_ORDER_ERR_MSG = 'Edges points are not in the right order'
+
 
 def node_to_edge(edge_node):
     """
