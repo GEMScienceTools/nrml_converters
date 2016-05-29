@@ -52,18 +52,18 @@ import os
 import csv
 import argparse
 import numpy as np
-from lxml import etree
-from collections import OrderedDict
+from openquake.commonlib.node import iterparse
 
-xmlNRML='{http://openquake.org/xmlns/nrml/0.5}'
+xmlNRML = '{http://openquake.org/xmlns/nrml/0.5}'
 xmlGML = '{http://www.opengis.net/gml}'
+
 
 def parse_single_loss_curve(element):
     '''
-    Reads the loss curve element to return the longitude, latitude and 
+    Reads the loss curve element to return the longitude, latitude and
     poes and losses
     '''
-    for e in element.iter(): 
+    for e in element.iter():
         ref = element.attrib.get('assetRef')
         if e.tag == '%spos' % xmlGML:
             coords = str(e.text).split()
@@ -89,8 +89,8 @@ def parse_metadata(element):
     meta_info['quantile_value'] = element.attrib.get('quantileValue')
     meta_info['investigationTime'] = element.attrib.get('investigationTime')
     meta_info['unit'] = element.attrib.get('unit')
-    
     return meta_info
+
 
 def LossCurveParser(input_file):
 
@@ -100,8 +100,7 @@ def LossCurveParser(input_file):
     losses = []
     poes = []
     meta_info = {}
-
-    for _, element in etree.iterparse(input_file):
+    for _, element in iterparse(input_file):
         if element.tag == '%slossCurves' % xmlNRML:
             meta_info = parse_metadata(element)
         elif element.tag == '%slossCurve' % xmlNRML:
@@ -115,20 +114,21 @@ def LossCurveParser(input_file):
             continue
     longitude = np.array(longitude)
     latitude = np.array(latitude)
-    
     return refs, longitude, latitude, poes, losses
-   
+
+
 def LossCurves2Csv(nrml_loss_curves):
     '''
     Writes the Loss curve set to csv
     '''
     refs, longitude, latitude, poes, losses = LossCurveParser(nrml_loss_curves)
-    output_file = open(nrml_loss_curves.replace('xml','csv'),'w')
+    output_file = open(nrml_loss_curves.replace('xml', 'csv'), 'w')
     for iloc in range(len(refs)):
-        print len(poes)
         poes_list = ','.join(map(str, poes[iloc]))
         losses_list = ','.join(map(str, losses[iloc]))
-        output_file.write(str(refs[iloc])+','+str(longitude[iloc])+','+str(latitude[iloc])+','+poes_list+','+losses_list+'\n')
+        output_file.write(str(refs[iloc]) + ',' + str(longitude[iloc]) + ',' +
+                          str(latitude[iloc]) + ',' + poes_list + ',' +
+                          losses_list + '\n')
     output_file.close()
 
 
@@ -138,16 +138,16 @@ def set_up_arg_parser():
     """
     parser = argparse.ArgumentParser(
         description='Convert NRML loss curves file to tab delimited '
-            ' .txt files. Inside the specified output directory, create a .txt '
-            'file for each stochastic event set.'
-            'To run just type: python parse_loss_curves.py '
-            '--input-file=PATH_TO_LOSS_CURVE_NRML_FILE ', add_help=False)
+        ' .txt files. Inside the specified output directory, create a '
+        '.txt file for each stochastic event set.'
+        'To run just type: python parse_loss_curves.py '
+        '--input-file=PATH_TO_LOSS_CURVE_NRML_FILE ', add_help=False)
     flags = parser.add_argument_group('flag arguments')
     flags.add_argument('-h', '--help', action='help')
     flags.add_argument('--input-file',
-        help='path to loss curves NRML file (Required)',
-        default=None,
-        required=True)
+                       help='path to loss curves NRML file (Required)',
+                       default=None,
+                       required=True)
 
     return parser
 

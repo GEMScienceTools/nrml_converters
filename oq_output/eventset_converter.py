@@ -50,12 +50,11 @@ import os
 import csv
 import argparse
 import numpy
-from lxml import etree
 from openquake.commonlib.node import striptag
 from openquake.commonlib.nrml import read
 from openquake.hazardlib.geo.mesh import RectangularMesh
 
-NRML='{http://openquake.org/xmlns/nrml/0.5}'
+NRML = '{http://openquake.org/xmlns/nrml/0.5}'
 
 PLANAR_TAGS = ["{:s}".format(tag)
                for tag in ["topLeft", "topRight", "bottomLeft", "bottomRight"]]
@@ -65,45 +64,31 @@ def parse_sesc_file(file_name):
     """
     Parse NRML 0.4 SES collection file.
     """
-    
     element = read(file_name, chatty=False)[0]
-    #sesc = parse_ses_collection(element)
     return parse_ses_collection(element)
-#    parse_args = dict(source=file_name)
-#  
-#    for _, element in etree.iterparse(**parse_args):
-#        if element.tag == '%sstochasticEventSetCollection' % NRML:
-#            sesc = parse_ses_collection(element)
-#
-#    return sesc
+
 
 def parse_ses_collection(element):
     """
-    Parse NRML 0.4 'stochasticEventSetCollection' and return
+    Parse NRML 0.5 'stochasticEventSetCollection' and return
     class StochasticEventSetCollection.
     """
-    #smtp = element.attrib['sourceModelTreePath']
-
     sess = []
     num_ses = 0
     for node in element.nodes:
         sess.append(parse_ses(node))
-
-    print 'number of stochastic event sets: %s' % len(sess)
-
-    #return StochasticEventSetCollection(smtp, sess)
+    print('number of stochastic event sets: %s' % len(sess))
     return StochasticEventSetCollection(sess)
 
 
 def parse_ses(element):
     """
-    Parse NRML 0.4 'stochasticEventSet' and return
+    Parse NRML 0.5 'stochasticEventSet' and return
     class StochasticEventSet.
     """
     ID = element.attrib['id']
     time_span = element.attrib['investigationTime']
-
-    print 'Processing ses %s' % ID
+    print('Processing ses %s' % ID)
 
     rups = []
     for node in element.nodes:
@@ -111,9 +96,10 @@ def parse_ses(element):
 
     return StochasticEventSet(ID, time_span, rups)
 
+
 def parse_rup(element):
     """
-    Parse NRML 0.4 'rupture' and return class Rupture.
+    Parse NRML 0.5 'rupture' and return class Rupture.
     """
     ID = element.attrib['id']
     magnitude = float(element.attrib['magnitude'])
@@ -122,7 +108,7 @@ def parse_rup(element):
     rake = float(element.attrib['rake'])
     tectonic_region = element.attrib['tectonicRegion']
 
-    print 'Processing rupture %s' % ID
+    print('Processing rupture %s' % ID)
     for node in element.nodes:
         if "planarSurface" in node.tag:
             surf = parse_planar_surf(node)
@@ -130,24 +116,6 @@ def parse_rup(element):
             surf = parse_mesh(node)
     return Rupture(ID, magnitude, strike, dip, rake, tectonic_region, surf)
 
-#    
-#    
-#    planar_surfs = element.findall('%splanarSurface' % NRML)
-#    mesh = element.find('%smesh' % NRML)
-#
-#    if planar_surfs:
-#        if len(planar_surfs) == 1:
-#            surf = parse_planar_surf(planar_surfs[0])
-#        else:
-#            surf = []
-#            for e in planar_surfs:
-#                surf.append(parse_planar_surf(e))
-#            surf = MultiPlanarSurface(surf)
-#    else:
-#        assert(mesh is not None)
-#        surf = parse_mesh(mesh)
-#
-#    return Rupture(ID, magnitude, strike, dip, rake, tectonic_region, surf)
 
 def parse_planar_surf(element):
     """
@@ -156,32 +124,20 @@ def parse_planar_surf(element):
     tag_set = [striptag(node.tag) for node in element.nodes]
     (top_left, top_right, bottom_left, bottom_right) = tuple(
         [element.nodes[tag_set.index(tag)] for tag in PLANAR_TAGS])
-#    for node in element.nodes:
-#        if "topLeft" in node.tag:
-#            top_left = copy(node)
-#        elif "topRight" in node.tag:
-#            top_right = copy(node)
-#        elif "bottomRight" in node.tag:
-#          
-#
-#    top_left = element.find('%stopLeft' % NRML)
-#    top_right = element.find('%stopRight' % NRML)
-#    bottom_left = element.find('%sbottomLeft' % NRML)
-#    bottom_right = element.find('%sbottomRight' % NRML)
 
     corners_lons = numpy.array(
         [float(top_left.attrib['lon']), float(top_right.attrib['lon']),
-        float(bottom_right.attrib['lon']), float(bottom_left.attrib['lon'])]
+         float(bottom_right.attrib['lon']), float(bottom_left.attrib['lon'])]
     )
 
     corners_lats = numpy.array(
         [float(top_left.attrib['lat']), float(top_right.attrib['lat']),
-        float(bottom_right.attrib['lat']), float(bottom_left.attrib['lat'])]
+         float(bottom_right.attrib['lat']), float(bottom_left.attrib['lat'])]
     )
 
     corners_depths = numpy.array(
         [float(top_left.attrib['depth']), float(top_right.attrib['depth']),
-        float(bottom_right.attrib['depth']), float(bottom_left.attrib['depth'])]
+         float(bottom_right.attrib['depth']), float(bottom_left.attrib['depth'])]
     )
 
     return PlanarSurface(corners_lons, corners_lats, corners_depths)
@@ -189,7 +145,7 @@ def parse_planar_surf(element):
 
 def parse_mesh(element):
     """
-    Parse NRML 0.4 'mesh' and return class MeshSurface.
+    Parse NRML 0.5 'mesh' and return class MeshSurface.
     """
     nrows = int(element.attrib['rows'])
     ncols = int(element.attrib['cols'])
@@ -206,27 +162,6 @@ def parse_mesh(element):
         depths[row, col] = float(e.attrib['depth'])
 
     return MeshSurface(lons, lats, depths)
-
-
-#def parse_mesh(element):
-#    """
-#    Parse NRML 0.4 'mesh' and return class MeshSurface.
-#    """
-#    nrows = int(element.attrib['rows'])
-#    ncols = int(element.attrib['cols'])
-#
-#    lons = numpy.ndarray((nrows, ncols))
-#    lats = numpy.ndarray((nrows, ncols))
-#    depths = numpy.ndarray((nrows, ncols))
-#
-#    for e in element.iterchildren():
-#        row = int(e.attrib['row'])
-#        col = int(e.attrib['col'])
-#        lons[row, col] = float(e.attrib['lon'])
-#        lats[row, col] = float(e.attrib['lat'])
-#        depths[row, col] = float(e.attrib['depth'])
-#
-#    return MeshSurface(lons, lats, depths)
 
 
 class BaseSurface(object):
@@ -246,6 +181,7 @@ class BaseSurface(object):
         """
         Return surface middle point
         """
+
 
 class PlanarSurface(BaseSurface):
     """
@@ -267,12 +203,14 @@ class PlanarSurface(BaseSurface):
         lats = numpy.array([self.corners_lats.take([0, 1]),
                             self.corners_lats.take([3, 2])])
         depths = numpy.array([self.corners_depths.take([0, 1]),
-                              self.corners_depths.take([3, 2])])                                  
+                              self.corners_depths.take([3, 2])])
         mesh = RectangularMesh(lons, lats, depths)
 
         middle_point = mesh.get_middle_point()
 
-        return (middle_point.longitude, middle_point.latitude, middle_point.depth)
+        return (middle_point.longitude, middle_point.latitude,
+                middle_point.depth)
+
 
 class MultiPlanarSurface(BaseSurface):
     """
@@ -297,6 +235,7 @@ class MultiPlanarSurface(BaseSurface):
         assert(isinstance(surf, PlanarSurface))
         return surf.get_middle_point()
 
+
 class MeshSurface(BaseSurface):
     """
     Class representing surface as mesh of points.
@@ -307,20 +246,22 @@ class MeshSurface(BaseSurface):
         self.depths = depths
 
     def get_surface_boundaries(self):
-        lons = numpy.concatenate((self.lons[0,:],
-                                  self.lons[1:,-1],
-                                  self.lons[-1,:-1][::-1],
-                                  self.lons[:-1,0][::-1]))
-        lats = numpy.concatenate((self.lats[0,:],
-                                  self.lats[1:,-1],
-                                  self.lats[-1,:-1][::-1],
-                                  self.lats[:-1,0][::-1]))
+        lons = numpy.concatenate((self.lons[0, :],
+                                  self.lons[1:, -1],
+                                  self.lons[-1, :-1][::-1],
+                                  self.lons[:-1, 0][::-1]))
+        lats = numpy.concatenate((self.lats[0, :],
+                                  self.lats[1:, -1],
+                                  self.lats[-1, :-1][::-1],
+                                  self.lats[:-1, 0][::-1]))
         return [lons], [lats]
 
     def get_middle_point(self):
         mesh = RectangularMesh(self.lons, self.lats, self.depths)
         middle_point = mesh.get_middle_point()
-        return (middle_point.longitude, middle_point.latitude, middle_point.depth)
+        return (middle_point.longitude, middle_point.latitude,
+                middle_point.depth)
+
 
 class Rupture(object):
     """
@@ -337,6 +278,7 @@ class Rupture(object):
         self.tect_reg = tect_reg
         self.surf = surf
 
+
 class StochasticEventSet(object):
     """
     Class representing a single SES, identified by an ID
@@ -348,30 +290,25 @@ class StochasticEventSet(object):
         self.time_span = time_span
         self.rups = rups
 
+
 class StochasticEventSetCollection(object):
     """
     Class representing collection of SESs associated to
     given source model and GSIM logic tree paths.
     """
     def __init__(self, sess):
-#    def __init__(self, smtp, sess):
         data = []
         for ses in sess:
             for rup in ses.rups:
                 lon, lat, depth = rup.surf.get_middle_point()
                 multi_lons, multi_lats = rup.surf.get_surface_boundaries()
-                boundary = 'MULTIPOLYGON(%s)' % \
-                    ','.join(
-                            '((%s))' % ','.join('%s %s' % \
-                                (lon, lat) for lon, lat in zip(lons, lats)) \
-                                for lons, lats in zip(multi_lons, multi_lats)
-                        )
+                boundary = 'MULTIPOLYGON(%s)' % ','.join(
+                    '((%s))' % ','.join('%s %s' % (lon, lat)
+                                        for lon, lat in zip(lons, lats))
+                    for lons, lats in zip(multi_lons, multi_lats))
                 data.append([ses.ID, rup.ID, rup.magnitude,
                              lon, lat, depth, rup.tect_reg, rup.strike,
                              rup.dip, rup.rake, boundary])
-#                data.append([smtp, ses.ID, rup.ID, rup.magnitude,
-#                             lon, lat, depth, rup.tect_reg, rup.strike,
-#                             rup.dip, rup.rake, boundary])
 
         self.data = numpy.array(data, dtype=object)
 
@@ -384,12 +321,12 @@ def save_sess_to_txt(sesc, output_dir):
     for ID in ses_ids:
         idx = sesc.data[:, 1] == ID
         fname = '%s/ses_%s.txt' % (output_dir, ID)
-        header = 'id\tmag\tcentroid_lon\tcentroid_lat\tcentroid_depth\ttrt\tstrike\tdip\trake\tboundary'
+        header = ('id\tmag\tcentroid_lon\tcentroid_lat\tcentroid_depth\t'
+                  'trt\tstrike\tdip\trake\tboundary')
         f = open(fname, 'w')
-        f.write(header+'\n')
-        numpy.savetxt(f, sesc.data[idx, 2 :],
-        fmt='t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s')
-#            fmt='%s\t%2.1f\t%5.2f\t%5.2f\t%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s')
+        f.write(header + '\n')
+        numpy.savetxt(f, sesc.data[idx, 2:], fmt='t%2.1f\t%5.2f\t%5.2f\t'
+                      '%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s')
         f.close()
 
 
@@ -399,22 +336,22 @@ def set_up_arg_parser():
     """
     parser = argparse.ArgumentParser(
         description='Convert NRML stochastic event set file to tab delimited '
-            ' .txt files. Inside the specified output directory, create a .txt '
-            'file for each stochastic event set.'
-            'To run just type: python eventset_converter.py '
-            '--input-file=PATH_TO_GMF_NRML_FILE '
-            '--output-dir=PATH_TO_OUTPUT_DIRECTORY', add_help=False)
+        ' .txt files. Inside the specified output directory, create a .txt '
+        'file for each stochastic event set.'
+        'To run just type: python eventset_converter.py '
+        '--input-file=PATH_TO_GMF_NRML_FILE '
+        '--output-dir=PATH_TO_OUTPUT_DIRECTORY', add_help=False)
     flags = parser.add_argument_group('flag arguments')
     flags.add_argument('-h', '--help', action='help')
     flags.add_argument('--input-file',
-        help='path to ses NRML file (Required)',
-        default=None,
-        required=True)
+                       help='path to ses NRML file (Required)',
+                       default=None,
+                       required=True)
     flags.add_argument('--output-dir',
-        help='path to output directory (Required, raise an error if it already exists)',
-        default=None,
-        required=True)
-
+                       help='path to output directory (Required, '
+                       'raise an error if it already exists)',
+                       default=None,
+                       required=True)
     return parser
 
 

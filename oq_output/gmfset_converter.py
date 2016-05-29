@@ -51,11 +51,10 @@ import csv
 import argparse
 import numpy
 from collections import OrderedDict
-#from lxml import etree
 from openquake.commonlib.nrml import read_lazy, read
 from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
-NRML='{http://openquake.org/xmlns/nrml/0.5}'
+NRML = '{http://openquake.org/xmlns/nrml/0.5}'
 
 
 class GMF(object):
