@@ -45,45 +45,11 @@ Convert NRML uniform hazard spectra file to .csv file.
 import os
 import argparse
 import numpy
-#from lxml import etree
 from openquake.commonlib.nrml import read_lazy
 import matplotlib.pyplot as plt
 
-NRML='{http://openquake.org/xmlns/nrml/0.5}'
-GML='{http://www.opengis.net/gml}'
-
-
-#def parse_nrml_uhs_curves(nrml_uhs_map):
-#    """
-#    Parse NRML uhs file.
-#    """
-#    metadata = {}
-#    periods = None
-#    values = []
-#
-#    parse_args = dict(source=nrml_uhs_map)
-#    for _, element in etree.iterparse(**parse_args):
-#        if element.tag == '%suniformHazardSpectra' % NRML:
-#            a = element.attrib
-#            metadata['statistics'] = a.get('statistics')
-#            metadata['quantile_value'] = a.get('quantileValue')
-#            metadata['smlt_path'] = a.get('sourceModelTreePath')
-#            metadata['gsimlt_path'] = a.get('gsimTreePath')
-#            metadata['investigation_time'] = a['investigationTime']
-#            metadata['poe'] = a.get('poE')
-#        elif element.tag == '%speriods' % NRML:
-#            periods = map(float, element.text.split())
-#        elif element.tag == '%suhs' % NRML:
-#            lon, lat = map(
-#                float, element.find('%sPoint/%spos' % (GML, GML)).text.split()
-#            )
-#            imls = map(float, element.find('%sIMLs' % NRML).text.split())
-#
-#            uhs = [lon, lat]
-#            uhs.extend(imls)
-#            values.append(uhs)
-#
-#    return metadata, periods, numpy.array(values)
+NRML = '{http://openquake.org/xmlns/nrml/0.5}'
+GML = '{http://www.opengis.net/gml}'
 OPTIONAL_PATHS = [("statistics", "statistics"),
                   ("gsimlt_path", "gsimTreePath"),
                   ("smlt_path", "sourceModelTreePath"),

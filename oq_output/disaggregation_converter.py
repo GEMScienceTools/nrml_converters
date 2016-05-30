@@ -47,12 +47,11 @@ import os
 import argparse
 import numpy
 import utils
-#from lxml import etree
 from collections import OrderedDict
 from subprocess import call
 from openquake.commonlib.nrml import read
 
-NRML='{http://openquake.org/xmlns/nrml/0.5}'
+NRML = '{http://openquake.org/xmlns/nrml/0.5}'
 
 
 def parse_nrml_disaggregation_file(nrml_disaggregation):
@@ -162,12 +161,13 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             elif disag_type == 'TRT':
                 ntrt = metadata['TRT'].size
                 bin_edges = range(ntrt)
-                annotation_file = open("annotation.dat",'w')
+                annotation_file = open("annotation.dat", 'w')
                 for i in range(ntrt):
-                    annotation_file.write("%s %s %s %s %s %s %s\n" % 
-                        (bin_edges[i],
-                        numpy.max(matrix) + 0.05 * numpy.max(matrix),
-                        12, 0.0, 0, 'MC', metadata['TRT'][i]))
+                    annotation_file.write(
+                        "%s %s %s %s %s %s %s\n" % (
+                            bin_edges[i],
+                            numpy.max(matrix) + 0.05 * numpy.max(matrix),
+                            12, 0.0, 0, 'MC', metadata['TRT'][i]))
                 annotation_file.close()
                 plot_1d_hist(output_file, 'Tectonic Region',
                              '', annotation_file.name)
@@ -176,13 +176,18 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             elif disag_type == 'Lon,Lat':
                 plot_2d_hist(output_file, 'Longitude', 'Latitude', '')
             elif disag_type == 'Mag,Dist,Eps':
-                plot_3d_hist(output_file, 'Magnitude', 'Distance', 'Epsilon', '')
+                plot_3d_hist(
+                    output_file, 'Magnitude', 'Distance', 'Epsilon', '')
             elif disag_type == 'Lon,Lat,Eps':
-                plot_3d_hist(output_file, 'Longitude', 'Latitude', 'Epsilon', '')
+                plot_3d_hist(
+                    output_file, 'Longitude', 'Latitude', 'Epsilon', '')
             elif disag_type == 'Lon,Lat,Mag':
-                plot_3d_hist(output_file, 'Longitude', 'Latitude', 'Magnitude', '')
+                plot_3d_hist(
+                    output_file, 'Longitude', 'Latitude', 'Magnitude', '')
             elif disag_type == 'Lon,Lat,TRT':
-                plot_3d_hist(output_file, 'Longitude', 'Latitude', '', '')
+                plot_3d_hist(
+                    output_file, 'Longitude', 'Latitude', '', '')
+
 
 def plot_1d_hist(hist_file, xlabel, title, annotation_file=None):
     """
