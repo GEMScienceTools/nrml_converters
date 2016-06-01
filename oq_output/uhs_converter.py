@@ -67,8 +67,8 @@ def parse_nrml_uhs_curves(nrml_uhs_map):
 
     metadata = {
         "smlt_path": node_set.attrib["sourceModelTreePath"],
-        "investigation_time": float(node_set.attrib["investigationTime"]),
-        "poe": float(node_set.attrib["poE"]),
+        "investigation_time": node_set.attrib["investigationTime"],
+        "poe": node_set.attrib["poE"],
         "gsimlt_path": node_set["gsimTreePath"]}
     for option, name in OPTIONAL_PATHS:
         if name in node_set.attrib:
@@ -76,14 +76,9 @@ def parse_nrml_uhs_curves(nrml_uhs_map):
         else:
             metadata[option] = None
 
-    periods = numpy.array(map(float, node_set.nodes[0].text.split()))
-    values = []
-    for node in node_set.nodes[1:]:
-        subnodes = list(node.nodes)
-        lon, lat = map(float, subnodes[0].nodes[0].text.split())
-        uhs = [lon, lat]
-        uhs.extend(map(float, subnodes[1].text.split()))
-        values.append(uhs)
+    periods = numpy.array(~node_set.periods)
+    values = [list(~point.pos) + ~imls
+              for (point, imls) in node_set.nodes[1:]]
     return metadata, periods, numpy.array(values)
 
 

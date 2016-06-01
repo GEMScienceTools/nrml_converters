@@ -72,29 +72,28 @@ def parse_nrml_disaggregation_file(nrml_disaggregation):
     metadata['lon'] = node_set.attrib['lon']
     metadata['lat'] = node_set.attrib['lat']
     metadata['Mag'] = \
-        numpy.array(node_set.attrib['magBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['magBinEdges'], dtype=float)
     metadata['Dist'] = \
-        numpy.array(node_set.attrib['distBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['distBinEdges'], dtype=float)
     metadata['Lon'] = \
-        numpy.array(node_set.attrib['lonBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['lonBinEdges'], dtype=float)
     metadata['Lat'] = \
-        numpy.array(node_set.attrib['latBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['latBinEdges'], dtype=float)
     metadata['Eps'] = \
-        numpy.array(node_set.attrib['epsBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['epsBinEdges'], dtype=float)
     metadata['TRT'] = \
         numpy.array(
             map(str.strip, node_set.attrib['tectonicRegionTypes'].split(',')),
-            dtype=object
-                )
+            dtype=object)
     # Load values
     for disag_node in node_set:
-        disag_type = disag_node.attrib["type"]
-        dims = tuple(map(int, disag_node.attrib['dims'].split(',')))
+        disag_type = tuple(disag_node.attrib["type"])
+        dims = tuple(map(int, disag_node.attrib['dims']))
         poe = float(disag_node.attrib['poE'])
         iml = float(disag_node.attrib['iml'])
         matrix = numpy.zeros(dims)
         for matx in disag_node.nodes:
-            idx = tuple(map(int, matx.attrib["index"].split(",")))
+            idx = tuple(map(int, matx.attrib["index"]))
             value = float(matx.attrib["value"])
             matrix[idx] = value
         matrices[disag_type] = (poe, iml, matrix)
@@ -122,7 +121,7 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             matrix = numpy.swapaxes(matrix, 1, 2)
             disag_type = 'Lon,Lat,Mag'
 
-        variables = tuple(disag_type.split(','))
+        variables = disag_type
 
         axis = [metadata[v] for v in variables]
 
@@ -130,8 +129,8 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
         header += ',poe'
 
         # compute axis mid points
-        axis = [(ax[: -1] + ax[1:]) / 2.
-                if ax.dtype==float else ax for ax in axis]
+        axis = [(ax[: -1] + ax[1:]) / 2. if ax.dtype == float
+                else ax for ax in axis]
 
         values = None
         if len(axis) == 1:
@@ -145,7 +144,7 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             values.append(matrix.flatten())
             values = numpy.array(values).T
 
-        output_file = '%s/%s.csv' % (output_dir, disag_type.replace(',', '_'))
+        output_file = '%s/%s.csv' % (output_dir, '_'.join(disag_type))
         f = open(output_file, 'w')
         f.write(header+'\n')
         numpy.savetxt(f, values, fmt='%s', delimiter=',')
