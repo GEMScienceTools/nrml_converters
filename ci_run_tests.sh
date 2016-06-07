@@ -36,8 +36,8 @@ fi
 set -e
 GEM_GIT_REPO="git://github.com/gem"
 GEM_GIT_PACKAGE="nrml_converters"
-GEM_GIT_DEPS="oq-hazardlib oq-risklib"
-GEM_LOCAL_DEPS="python-nose python-coverage gmt python-pyshp gmt-gshhs-low python-matplotlib python-mpltoolkits.basemap pylint python-lxml"
+GEM_GIT_DEPS="oq-hazardlib oq-engine"
+GEM_LOCAL_DEPS="python-nose python-coverage gmt python-pyshp gmt-gshhs-low python-matplotlib python-mpltoolkits.basemap pylint"
 
 if [ -z "$GEM_DEB_REPO" ]; then
     GEM_DEB_REPO="$HOME/gem_ubuntu_repo"
@@ -215,13 +215,13 @@ _devtest_innervm_run () {
 
     # add custom packages
     ssh $lxc_ip mkdir -p "repo"
-if [ 0 -eq 1 ]; then
-    scp -r ${GEM_DEB_REPO}/${BUILD_UBUVER}/custom_pkgs $lxc_ip:repo/custom_pkgs
-    ssh $lxc_ip "sudo apt-add-repository \"deb file:/home/ubuntu/repo/custom_pkgs ./\""
+
+    scp -r ${GEM_DEB_REPO}/custom_pkgs $lxc_ip:repo/custom_pkgs
+    ssh $lxc_ip "sudo apt-add-repository \"deb file:/home/ubuntu/repo/custom_pkgs ${BUILD_UBUVER} main\""
 
     ssh $lxc_ip "sudo apt-get update"
     ssh $lxc_ip "sudo apt-get upgrade -y"
-fi
+
     ssh $lxc_ip "sudo apt-get install -y $GEM_LOCAL_DEPS"
 
     old_ifs="$IFS"
@@ -263,7 +263,7 @@ fi
     # install sources of this package
     git archive --prefix ${GEM_GIT_PACKAGE}/ HEAD | ssh $lxc_ip "tar xv"
 
-    ssh $lxc_ip "export DISPLAY=\"$guest_display\"; export PYTHONPATH=\"\$PWD/oq-hazardlib:\$PWD/oq-risklib\" ; cd \"$GEM_GIT_PACKAGE\" ; nosetests --with-xunit -v --with-coverage || true"
+    ssh $lxc_ip "export DISPLAY=\"$guest_display\"; export PYTHONPATH=\"\$PWD/oq-hazardlib:\$PWD/oq-engine\" ; cd \"$GEM_GIT_PACKAGE\" ; nosetests --with-xunit -v --with-coverage || true"
 
     trap ERR
 
@@ -279,8 +279,15 @@ fi
 deps_list() {
     local old_ifs out_list skip i d listtype="$1" control_file="$2"/control rules_file="$2"/rules
 
-    rules_dep=$(grep "^${BUILD_UBUVER^^}_DEP *= *" $rules_file | sed 's/^.*= *//g')
-    rules_rec=$(grep "^${BUILD_UBUVER^^}_REC *= *" $rules_file | sed 's/^.*= *//g')
+    if grep -q "^${BUILD_UBUVER^^}_DEP" $rules_file; then
+        # Use custom dependencies in debian/rules
+        rules_dep=$(grep "^${BUILD_UBUVER^^}_DEP *= *" $rules_file | sed 's/([^)]*)//g' | sed 's/^.*= *//g')
+        rules_rec=$(grep "^${BUILD_UBUVER^^}_REC *= *" $rules_file | sed 's/([^)]*)//g' | sed 's/^.*= *//g')
+    else
+        # Otherwise use the default values in debian/rules
+        rules_dep=$(grep "^DEFAULT_DEP *= *" $rules_file | sed 's/([^)]*)//g' | sed 's/^.*= *//g')
+        rules_rec=$(grep "^DEFAULT_REC *= *" $rules_file | sed 's/([^)]*)//g' | sed 's/^.*= *//g')
+    fi
 
     out_list=""
     if [ "$listtype" = "all" ]; then

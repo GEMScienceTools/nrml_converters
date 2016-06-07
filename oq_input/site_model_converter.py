@@ -51,7 +51,6 @@ from collections import OrderedDict
 
 from openquake.commonlib.node import read_nodes, LiteralNode
 from openquake.commonlib import nrml
-from openquake.commonlib.valid import site_param
 
 
 def xml_to_csv(input_xml, output_csv):

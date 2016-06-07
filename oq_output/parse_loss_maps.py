@@ -47,25 +47,20 @@
 Post-process risk calculation data to convert loss maps into different
 formats
 '''
-
-import os
-import csv
 import argparse
-import numpy as np
-from lxml import etree
-from collections import OrderedDict
+from openquake.commonlib.node import iterparse
 
-xmlNRML='{http://openquake.org/xmlns/nrml/0.5}'
+xmlNRML = '{http://openquake.org/xmlns/nrml/0.5}'
 xmlGML = '{http://www.opengis.net/gml}'
+
 
 def parse_single_loss_node(element):
     '''
-    Reads the loss map node element to return the longitude, latitude and 
+    Reads the loss map node element to return the longitude, latitude and
     asset ref and losses
     '''
     values = []
-    
-    for e in element.iter(): 
+    for e in element.iter():
         if e.tag == '%spos' % xmlGML:
             coords = str(e.text).split()
             lon = float(coords[0])
@@ -76,11 +71,11 @@ def parse_single_loss_node(element):
                 loss = e.attrib.get('mean')
             else:
                 loss = e.attrib.get('value')
-            values.append([ref,lon,lat,loss])
+            values.append([ref, lon, lat, loss])
         else:
             continue
-            
     return values
+
 
 def parse_metadata(element):
     '''
@@ -94,15 +89,15 @@ def parse_metadata(element):
     meta_info['sourceModelTreePath'] = element.attrib.get('sourceModelTreePath')
     meta_info['gsimTreePath'] = element.attrib.get('gsimTreePath')
     meta_info['lossCategory'] = element.attrib.get('lossCategory')
-    
     return meta_info
+
 
 def LossMapParser(input_file):
 
     values = []
     meta_info = {}
 
-    for _, element in etree.iterparse(input_file):
+    for _, element in iterparse(input_file):
         if element.tag == '%slossMap' % xmlNRML:
             meta_info = parse_metadata(element)
         elif element.tag == '%snode' % xmlNRML:
@@ -110,11 +105,10 @@ def LossMapParser(input_file):
             values.append(value)
         else:
             continue
-    
     return values
-    
+
+
 def aggLossMapLosses(values):
-    
     uniqueLocations = []
     agg_losses = []
     for value in values:
@@ -123,26 +117,29 @@ def aggLossMapLosses(values):
                 uniqueLocations.append(str(subvalue[1])+','+str(subvalue[2]))
                 agg_losses.append(0)
             idx = uniqueLocations.index(str(subvalue[1])+','+str(subvalue[2]))
-            agg_losses[idx]=agg_losses[idx]+float(subvalue[3])
-        
+            agg_losses[idx] = agg_losses[idx] + float(subvalue[3])
     return uniqueLocations, agg_losses
-    
-def LossMap2Csv(nrml_loss_map,agg_losses):
+
+
+def LossMap2Csv(nrml_loss_map, agg_losses):
     '''
     Writes the Loss map set to csv
     '''
     values = LossMapParser(nrml_loss_map)
-    output_file = open(nrml_loss_map.replace('xml','csv'),'w')        
+    output_file = open(nrml_loss_map.replace('xml', 'csv'), 'w')
     for inode in range(len(values)):
         for iasset in range(len(values[inode])):
-            output_file.write(values[inode][iasset][0]+','+str(values[inode][iasset][1])+','+str(values[inode][iasset][2])+','+str(values[inode][iasset][3])+'\n')
+            output_file.write(values[inode][iasset][0] + ',' +
+                              str(values[inode][iasset][1]) + ',' +
+                              str(values[inode][iasset][2]) + ',' +
+                              str(values[inode][iasset][3]) + '\n')
     output_file.close()
-    
     if agg_losses:
-        agg_output_file = open(nrml_loss_map.replace('xml','_agg.csv'),'w')
+        agg_output_file = open(nrml_loss_map.replace('xml', '_agg.csv'), 'w')
         agg_values = aggLossMapLosses(values)
         for iloc in range(len(agg_values[0])):
-            agg_output_file.write(str(agg_values[0][iloc])+','+str(agg_values[1][iloc])+'\n')
+            agg_output_file.write(str(agg_values[0][iloc]) +
+                                  ',' + str(agg_values[1][iloc])+'\n')
         agg_output_file.close()
 
 
@@ -152,22 +149,22 @@ def set_up_arg_parser():
     """
     parser = argparse.ArgumentParser(
         description='Convert NRML loss maps file to tab delimited '
-            ' .txt files. Inside the specified output directory, create a .txt '
-            'file for each stochastic event set.'
-            'To run just type: python parse_loss_maps.py '
-            '--input-file=PATH_TO_LOSS_MAP_NRML_FILE '
-            'include --agg-losses if you whish to aggregate the losses per location ', add_help=False)
+        ' .txt files. Inside the specified output directory, create a '
+        '.txt file for each stochastic event set.'
+        'To run just type: python parse_loss_maps.py '
+        '--input-file=PATH_TO_LOSS_MAP_NRML_FILE '
+        'include --agg-losses if you whish to aggregate the losses per '
+        'location ', add_help=False)
     flags = parser.add_argument_group('flag arguments')
     flags = parser.add_argument_group('flag arguments')
     flags.add_argument('-h', '--help', action='help')
     flags.add_argument('--input-file',
-        help='path to loss map NRML file (Required)',
-        default=None,
-        required=True)
+                       help='path to loss map NRML file (Required)',
+                       default=None,
+                       required=True)
     flags.add_argument('--agg-losses', action="store_true",
-        help='aggregates the losses per location',
-        required=False)
-
+                       help='aggregates the losses per location',
+                       required=False)
     return parser
 
 
@@ -177,4 +174,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.input_file:
-        LossMap2Csv(args.input_file,args.agg_losses)
+        LossMap2Csv(args.input_file, args.agg_losses)

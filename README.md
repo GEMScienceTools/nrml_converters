@@ -28,7 +28,6 @@ No installation is needed; however, the scripts require the following
 dependences:
 
 * numpy
-* lxml
 * oq-hazardlib (https://github.com/gem/oq-hazardlib) - only
     for eventset_converter.py
 * oq-nrmllib (https://github.com/gem/oq-nrmllib) - for source_model_converter.py,
@@ -43,7 +42,7 @@ which can be installed using the following command:
 
 >> sudo pip install pyshp
 
-In other environments it is recommended to install numpy, lxml and shapely
+In other environments it is recommended to install numpy and shapely
 using the standard packages (dependent on the OS).
 
 

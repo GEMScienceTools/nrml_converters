@@ -47,12 +47,11 @@ import os
 import argparse
 import numpy
 import utils
-#from lxml import etree
 from collections import OrderedDict
 from subprocess import call
 from openquake.commonlib.nrml import read
 
-NRML='{http://openquake.org/xmlns/nrml/0.5}'
+NRML = '{http://openquake.org/xmlns/nrml/0.5}'
 
 
 def parse_nrml_disaggregation_file(nrml_disaggregation):
@@ -73,29 +72,28 @@ def parse_nrml_disaggregation_file(nrml_disaggregation):
     metadata['lon'] = node_set.attrib['lon']
     metadata['lat'] = node_set.attrib['lat']
     metadata['Mag'] = \
-        numpy.array(node_set.attrib['magBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['magBinEdges'], dtype=float)
     metadata['Dist'] = \
-        numpy.array(node_set.attrib['distBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['distBinEdges'], dtype=float)
     metadata['Lon'] = \
-        numpy.array(node_set.attrib['lonBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['lonBinEdges'], dtype=float)
     metadata['Lat'] = \
-        numpy.array(node_set.attrib['latBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['latBinEdges'], dtype=float)
     metadata['Eps'] = \
-        numpy.array(node_set.attrib['epsBinEdges'].split(','), dtype=float)
+        numpy.array(node_set.attrib['epsBinEdges'], dtype=float)
     metadata['TRT'] = \
         numpy.array(
             map(str.strip, node_set.attrib['tectonicRegionTypes'].split(',')),
-            dtype=object
-                )
+            dtype=object)
     # Load values
     for disag_node in node_set:
-        disag_type = disag_node.attrib["type"]
-        dims = tuple(map(int, disag_node.attrib['dims'].split(',')))
+        disag_type = tuple(disag_node.attrib["type"])
+        dims = tuple(map(int, disag_node.attrib['dims']))
         poe = float(disag_node.attrib['poE'])
         iml = float(disag_node.attrib['iml'])
         matrix = numpy.zeros(dims)
         for matx in disag_node.nodes:
-            idx = tuple(map(int, matx.attrib["index"].split(",")))
+            idx = tuple(map(int, matx.attrib["index"]))
             value = float(matx.attrib["value"])
             matrix[idx] = value
         matrices[disag_type] = (poe, iml, matrix)
@@ -123,7 +121,7 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             matrix = numpy.swapaxes(matrix, 1, 2)
             disag_type = 'Lon,Lat,Mag'
 
-        variables = tuple(disag_type.split(','))
+        variables = disag_type
 
         axis = [metadata[v] for v in variables]
 
@@ -131,8 +129,8 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
         header += ',poe'
 
         # compute axis mid points
-        axis = [(ax[: -1] + ax[1:]) / 2.
-                if ax.dtype==float else ax for ax in axis]
+        axis = [(ax[: -1] + ax[1:]) / 2. if ax.dtype == float
+                else ax for ax in axis]
 
         values = None
         if len(axis) == 1:
@@ -146,7 +144,7 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             values.append(matrix.flatten())
             values = numpy.array(values).T
 
-        output_file = '%s/%s.csv' % (output_dir, disag_type.replace(',', '_'))
+        output_file = '%s/%s.csv' % (output_dir, '_'.join(disag_type))
         f = open(output_file, 'w')
         f.write(header+'\n')
         numpy.savetxt(f, values, fmt='%s', delimiter=',')
@@ -162,12 +160,13 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             elif disag_type == 'TRT':
                 ntrt = metadata['TRT'].size
                 bin_edges = range(ntrt)
-                annotation_file = open("annotation.dat",'w')
+                annotation_file = open("annotation.dat", 'w')
                 for i in range(ntrt):
-                    annotation_file.write("%s %s %s %s %s %s %s\n" % 
-                        (bin_edges[i],
-                        numpy.max(matrix) + 0.05 * numpy.max(matrix),
-                        12, 0.0, 0, 'MC', metadata['TRT'][i]))
+                    annotation_file.write(
+                        "%s %s %s %s %s %s %s\n" % (
+                            bin_edges[i],
+                            numpy.max(matrix) + 0.05 * numpy.max(matrix),
+                            12, 0.0, 0, 'MC', metadata['TRT'][i]))
                 annotation_file.close()
                 plot_1d_hist(output_file, 'Tectonic Region',
                              '', annotation_file.name)
@@ -176,13 +175,18 @@ def save_disagg_to_csv(nrml_disaggregation, output_dir, plot):
             elif disag_type == 'Lon,Lat':
                 plot_2d_hist(output_file, 'Longitude', 'Latitude', '')
             elif disag_type == 'Mag,Dist,Eps':
-                plot_3d_hist(output_file, 'Magnitude', 'Distance', 'Epsilon', '')
+                plot_3d_hist(
+                    output_file, 'Magnitude', 'Distance', 'Epsilon', '')
             elif disag_type == 'Lon,Lat,Eps':
-                plot_3d_hist(output_file, 'Longitude', 'Latitude', 'Epsilon', '')
+                plot_3d_hist(
+                    output_file, 'Longitude', 'Latitude', 'Epsilon', '')
             elif disag_type == 'Lon,Lat,Mag':
-                plot_3d_hist(output_file, 'Longitude', 'Latitude', 'Magnitude', '')
+                plot_3d_hist(
+                    output_file, 'Longitude', 'Latitude', 'Magnitude', '')
             elif disag_type == 'Lon,Lat,TRT':
-                plot_3d_hist(output_file, 'Longitude', 'Latitude', '', '')
+                plot_3d_hist(
+                    output_file, 'Longitude', 'Latitude', '', '')
+
 
 def plot_1d_hist(hist_file, xlabel, title, annotation_file=None):
     """
