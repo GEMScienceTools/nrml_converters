@@ -1111,10 +1111,10 @@ class ShapefileParser(SourceModelParser):
                 src_mod.has_point_source is False:
             GEOMETRY_PARAMS[:] = []
 
-        if src_mod.has_mfd_gr is False:
-            MFD_PARAMS.remove(('max_mag', 'max_mag', 'f'))
-            MFD_PARAMS.remove(('a_val', 'a_val', 'f'))
-            MFD_PARAMS.remove(('b_val', 'b_val', 'f'))
+        #if src_mod.has_mfd_gr is False:
+        #    MFD_PARAMS.remove(('max_mag', 'max_mag', 'f'))
+        #    MFD_PARAMS.remove(('a_val', 'a_val', 'f'))
+        #    MFD_PARAMS.remove(('b_val', 'b_val', 'f'))
 
         if src_mod.has_mfd_incremental is False:
             MFD_PARAMS.remove(('binWidth', 'bin_width', 'f'))
