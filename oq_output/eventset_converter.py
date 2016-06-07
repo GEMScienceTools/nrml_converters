@@ -317,9 +317,9 @@ def save_sess_to_txt(sesc, output_dir):
     """
     Save stochastic event sets collection to .txt files.
     """
-    ses_ids = numpy.unique(sesc.data[:, 1])
+    ses_ids = numpy.unique(sesc.data[:, 0])
     for ID in ses_ids:
-        idx = sesc.data[:, 1] == ID
+        idx = sesc.data[:, 0] == ID
         fname = '%s/ses_%s.txt' % (output_dir, ID)
         header = ('id\tmag\tcentroid_lon\tcentroid_lat\tcentroid_depth\t'
                   'trt\tstrike\tdip\trake\tboundary')
