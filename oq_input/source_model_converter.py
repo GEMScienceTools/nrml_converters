@@ -844,9 +844,9 @@ def build_hdd_from_shp(record):
         if (hd_key in record) and (weight_key in record):
             hd_text = (float(record[weight_key]), float(record[hd_key]))
             hdds.append(LiteralNode("hypoDepth",
-                                    {"depth": record[hd_key],
-                                     "probability": record[weight_key]},
-                                     text=hd_text))
+                                    {"depth": float(record[hd_key]),
+                                     "probability": float(record[weight_key])},
+                                    text=hd_text))
     return LiteralNode("hypoDepthDist", nodes=hdds)
 
 def build_point_source_from_shp(shape, record):
@@ -1154,7 +1154,7 @@ class ShapefileParser(SourceModelParser):
                 pass
             if validate:
                 print "Validating Source %s" % src.attrib["id"]
-                _ = converter.convert_node(src)
+                converter.convert_node(src)
             sources.append(src)
         return SourceModel(sources)
 
