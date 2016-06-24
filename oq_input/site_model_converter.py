@@ -49,7 +49,7 @@ from argparse import RawTextHelpFormatter
 import numpy as np
 from collections import OrderedDict
 
-from openquake.commonlib.node import read_nodes, LiteralNode
+from openquake.commonlib.node import Node
 from openquake.commonlib import nrml
 
 
@@ -58,8 +58,7 @@ def xml_to_csv(input_xml, output_csv):
     Parses the site model from an input xml file to a headed csv file
     """
     # Read in from XML
-    sites = read_nodes(input_xml, lambda el: el.tag.endswith("site"),
-                       nrml.nodefactory["siteModel"])
+    sites = nrml.read(input_xml).siteModel
     fid = open(output_csv, "w")
     print >> fid, "%s" % "longitude,latitude,vs30,vs30Type,z1pt0,z2pt5,backarc"
     for site in sites:
@@ -76,12 +75,12 @@ def xml_to_csv(input_xml, output_csv):
             vs30_type = 1
         else:
             vs30_type = 0
-
         print >> fid, "%s" % ",".join([
-            site["lon"], site["lat"], site["vs30"],
-            str(vs30_type), site["z1pt0"], site["z2pt5"],
+            str(site["lon"]), str(site["lat"]), str(site["vs30"]),
+            str(vs30_type), str(site["z1pt0"]), str(site["z2pt5"]),
             str(site["backarc"])])
     fid.close()
+
 
 def csv_to_xml(input_csv, output_xml):
     """
@@ -104,10 +103,10 @@ def csv_to_xml(input_csv, output_xml):
             site_attrib.append(("backarc", str(bool(data["backarc"][i]))))
         else:
             site_attrib.append(("backarc", "False"))
-        site_nodes.append(LiteralNode("site",
+        site_nodes.append(Node("site",
                                       OrderedDict(site_attrib),
                                       nodes=None))
-    site_model = LiteralNode("siteModel", nodes=site_nodes)
+    site_model = Node("siteModel", nodes=site_nodes)
     with open(output_xml, "w") as fid:
         nrml.write([site_model], fid, "%s")
 

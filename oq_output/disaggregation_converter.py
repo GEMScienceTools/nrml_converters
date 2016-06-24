@@ -81,10 +81,9 @@ def parse_nrml_disaggregation_file(nrml_disaggregation):
         numpy.array(node_set.attrib['latBinEdges'], dtype=float)
     metadata['Eps'] = \
         numpy.array(node_set.attrib['epsBinEdges'], dtype=float)
-    metadata['TRT'] = \
-        numpy.array(
-            map(str.strip, node_set.attrib['tectonicRegionTypes'].split(',')),
-            dtype=object)
+    trts = [s.strip().encode('utf-8')
+            for s in node_set['tectonicRegionTypes'].split(',')]
+    metadata['TRT'] = numpy.array(trts, object)
     # Load values
     for disag_node in node_set:
         disag_type = tuple(disag_node.attrib["type"])

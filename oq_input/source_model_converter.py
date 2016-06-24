@@ -61,12 +61,9 @@ from openquake.hazardlib.geo.surface import (ComplexFaultSurface,
                                              MultiSurface)
 from openquake.hazardlib.tom import PoissonTOM
 
-#from openquake.commonlib.source import parse_source_model
 from openquake.commonlib import nrml
-#from openquake.commonlib.nrml import nodefactory
-from openquake.commonlib.node import read_nodes, LiteralNode, striptag
+from openquake.commonlib.node import Node, striptag
 from openquake.commonlib.sourceconverter import SourceConverter
-#from openquake.commonlib.sourcewriter import write_source_model
 
 from input_utils import fix_source_node, AKI_RICH_ERR_MSG, WRONG_ORDER_ERR_MSG
 
@@ -414,7 +411,6 @@ def extract_mfd_params(src):
         rate_dict = OrderedDict([(key, None)
                                  for i, (key, _) in enumerate(RATE_PARAMS)])
 
-            
     return OrderedDict(data), rate_dict
 
 
@@ -699,16 +695,16 @@ def area_geometry_from_shp(shape, record):
     geom = []
     for row in shape.points:
         geom.extend([row[0], row[1]])
-    poslist_node = LiteralNode("posList", text=geom)
-    linear_ring_node = LiteralNode("LinearRing", nodes=[poslist_node])
-    exterior_node = LiteralNode("exterior", nodes=[linear_ring_node])
-    polygon_node = LiteralNode("Polygon", nodes=[exterior_node])
+    poslist_node = Node("posList", text=geom)
+    linear_ring_node = Node("LinearRing", nodes=[poslist_node])
+    exterior_node = Node("exterior", nodes=[linear_ring_node])
+    polygon_node = Node("Polygon", nodes=[exterior_node])
 
-    upper_depth_node = LiteralNode("upperSeismoDepth",
+    upper_depth_node = Node("upperSeismoDepth",
                                    text=float(record["usd"]))
-    lower_depth_node = LiteralNode("lowerSeismoDepth",
+    lower_depth_node = Node("lowerSeismoDepth",
                                    text=float(record["lsd"]))
-    return LiteralNode(
+    return Node(
         "areaGeometry",
         nodes=[polygon_node, upper_depth_node, lower_depth_node])
 
@@ -718,13 +714,13 @@ def point_geometry_from_shp(shape, record):
     """
     assert record["sourcetype"] == "pointSource"
     xy = shape.points[0][0], shape.points[0][1]
-    pos_node = LiteralNode("pos", text=xy)
-    point_node = LiteralNode("Point", nodes=[pos_node])
-    upper_depth_node = LiteralNode("upperSeismoDepth",
+    pos_node = Node("pos", text=xy)
+    point_node = Node("Point", nodes=[pos_node])
+    upper_depth_node = Node("upperSeismoDepth",
                                    text=float(record["usd"]))
-    lower_depth_node = LiteralNode("lowerSeismoDepth",
+    lower_depth_node = Node("lowerSeismoDepth",
                                    text=float(record["lsd"]))
-    return LiteralNode(
+    return Node(
         "pointGeometry",
         nodes=[point_node, upper_depth_node, lower_depth_node])
 
@@ -736,14 +732,14 @@ def simple_fault_geometry_from_shp(shape, record):
     geom = []
     for row in shape.points:
         geom.extend([row[0], row[1]])
-    poslist_node = LiteralNode("posList", text=geom)
-    trace_node = LiteralNode("LineString", nodes=[poslist_node])
-    dip_node = LiteralNode("dip", text=float(record["dip"]))
-    upper_depth_node = LiteralNode("upperSeismoDepth",
+    poslist_node = Node("posList", text=geom)
+    trace_node = Node("LineString", nodes=[poslist_node])
+    dip_node = Node("dip", text=float(record["dip"]))
+    upper_depth_node = Node("upperSeismoDepth",
                                    text=float(record["usd"]))
-    lower_depth_node = LiteralNode("lowerSeismoDepth",
+    lower_depth_node = Node("lowerSeismoDepth",
                                    text=float(record["lsd"]))
-    return LiteralNode("simpleFaultGeometry",
+    return Node("simpleFaultGeometry",
                        nodes=[trace_node, dip_node, upper_depth_node,
                               lower_depth_node])
 
@@ -762,19 +758,19 @@ def complex_fault_geometry_from_shp(shape, record):
         for j in idx:
             geom.extend([shape.points[j][0], shape.points[j][1],
                          shape.z[j]])
-        poslist_node = LiteralNode("posList", text=geom)
-        linestring_node = LiteralNode("LineString", nodes=[poslist_node])
+        poslist_node = Node("posList", text=geom)
+        linestring_node = Node("LineString", nodes=[poslist_node])
         if iloc == 0:
             # Fault top edge
-            edges.append(LiteralNode("faultTopEdge", nodes=[linestring_node]))
+            edges.append(Node("faultTopEdge", nodes=[linestring_node]))
         elif iloc == (len(indices) - 1):
             # Fault bottom edges
-            edges.append(LiteralNode("faultBottomEdge",
+            edges.append(Node("faultBottomEdge",
                                      nodes=[linestring_node]))
         else:
-            edges.append(LiteralNode("intermediateEdge",
+            edges.append(Node("intermediateEdge",
                                      nodes=[linestring_node]))
-    return LiteralNode("complexFaultGeometry", nodes=edges)
+    return Node("complexFaultGeometry", nodes=edges)
 
 def build_incremental_mfd_from_shp(record):
     """
@@ -785,8 +781,8 @@ def build_incremental_mfd_from_shp(record):
         key = "rate{:s}".format(str(i))
         if key in record:
             rates.append(record[key])
-    occur_rates = LiteralNode("occurRates", text=" ".join(rates))
-    return LiteralNode("incrementalMFD",
+    occur_rates = Node("occurRates", text=" ".join(rates))
+    return Node("incrementalMFD",
         {"binWidth": float(record["bin_width"]),
          "minMag": float(record["min_mag"])},
         nodes=[occur_rates])
@@ -799,7 +795,7 @@ def build_trunc_gr_from_shp(record):
                "bValue": float(record["b_val"]),
                "minMag": float(record["min_mag"]),
                "maxMag": float(record["max_mag"])}
-    return LiteralNode("truncGutenbergRichterMFD", attribs)
+    return Node("truncGutenbergRichterMFD", attribs)
 
 def build_mfd_from_shp(record):
     """
@@ -830,8 +826,8 @@ def build_npd_from_shp(record):
                        "dip": float(record[dip_key]),
                        "rake": float(record[rake_key]),
                        "probability": float(record[weight_key])}
-            npds.append(LiteralNode("nodalPlane", attribs))
-    return LiteralNode("nodalPlaneDist", nodes=npds)
+            npds.append(Node("nodalPlane", attribs))
+    return Node("nodalPlaneDist", nodes=npds)
 
 def build_hdd_from_shp(record):
     """
@@ -843,11 +839,11 @@ def build_hdd_from_shp(record):
         weight_key = "hdweight{:s}".format(str(iloc))
         if (hd_key in record) and (weight_key in record):
             hd_text = (float(record[weight_key]), float(record[hd_key]))
-            hdds.append(LiteralNode("hypoDepth",
+            hdds.append(Node("hypoDepth",
                                     {"depth": float(record[hd_key]),
                                      "probability": float(record[weight_key])},
                                     text=hd_text))
-    return LiteralNode("hypoDepthDist", nodes=hdds)
+    return Node("hypoDepthDist", nodes=hdds)
 
 def build_point_source_from_shp(shape, record):
     """
@@ -857,16 +853,16 @@ def build_point_source_from_shp(shape, record):
                "tectonicRegion": record["trt"]}
     nodes = [point_geometry_from_shp(shape, record)]
     # Scaling relation
-    nodes.append(LiteralNode("magScaleRel", text=record["msr"]))
+    nodes.append(Node("magScaleRel", text=record["msr"]))
     # Aspect ratio
-    nodes.append(LiteralNode("ruptAspectRatio", text=float(record["rar"])))
+    nodes.append(Node("ruptAspectRatio", text=float(record["rar"])))
     # MFD
     nodes.append(build_mfd_from_shp(record))
     # Nodal Plane Distribution
     nodes.append(build_npd_from_shp(record))
     # Hypocentre Depth Distribtion
     nodes.append(build_hdd_from_shp(record))
-    return LiteralNode("pointSource", attribs, nodes=nodes)
+    return Node("pointSource", attribs, nodes=nodes)
 
 
 def build_area_source_from_shp(shape, record):
@@ -877,16 +873,16 @@ def build_area_source_from_shp(shape, record):
                "tectonicRegion": record["trt"]}
     nodes = [area_geometry_from_shp(shape, record)]
     # Scaling relation
-    nodes.append(LiteralNode("magScaleRel", text=record["msr"]))
+    nodes.append(Node("magScaleRel", text=record["msr"]))
     # Aspect ratio
-    nodes.append(LiteralNode("ruptAspectRatio", text=float(record["rar"])))
+    nodes.append(Node("ruptAspectRatio", text=float(record["rar"])))
     # MFD
     nodes.append(build_mfd_from_shp(record))
     # Nodal Plane Distribution
     nodes.append(build_npd_from_shp(record))
     # Hypocentre Depth Distribtion
     nodes.append(build_hdd_from_shp(record))
-    return LiteralNode("areaSource", attribs, nodes=nodes)
+    return Node("areaSource", attribs, nodes=nodes)
 
 def build_simple_fault_source_from_shp(shape, record):
     """
@@ -896,14 +892,14 @@ def build_simple_fault_source_from_shp(shape, record):
                "tectonicRegion": record["trt"]}
     nodes = [simple_fault_geometry_from_shp(shape, record)]
     # Scaling relation
-    nodes.append(LiteralNode("magScaleRel", text=record["msr"]))
+    nodes.append(Node("magScaleRel", text=record["msr"]))
     # Aspect ratio
-    nodes.append(LiteralNode("ruptAspectRatio", text=float(record["rar"])))
+    nodes.append(Node("ruptAspectRatio", text=float(record["rar"])))
     # MFD
     nodes.append(build_mfd_from_shp(record))
     # Rake
-    nodes.append(LiteralNode("rake", text=float(record["rake"])))
-    return LiteralNode("simpleFaultSource", attribs, nodes=nodes)
+    nodes.append(Node("rake", text=float(record["rake"])))
+    return Node("simpleFaultSource", attribs, nodes=nodes)
 
 
 def build_complex_fault_source_from_shp(shape, record):
@@ -914,14 +910,14 @@ def build_complex_fault_source_from_shp(shape, record):
                "tectonicRegion": record["trt"]}
     nodes = [complex_fault_geometry_from_shp(shape, record)]
     # Scaling relation
-    nodes.append(LiteralNode("magScaleRel", text=record["msr"]))
+    nodes.append(Node("magScaleRel", text=record["msr"]))
     # Aspect ratio
-    nodes.append(LiteralNode("ruptAspectRatio", text=float(record["rar"])))
+    nodes.append(Node("ruptAspectRatio", text=float(record["rar"])))
     # MFD
     nodes.append(build_mfd_from_shp(record))
     # Rake
-    nodes.append(LiteralNode("rake", text=float(record["rake"])))
-    return LiteralNode("complexFaultSource", attribs, nodes=nodes)
+    nodes.append(Node("rake", text=float(record["rake"])))
+    return Node("complexFaultSource", attribs, nodes=nodes)
 
 
 
@@ -1048,13 +1044,12 @@ class SourceModelParser(object):
                                         complex_mesh_spacing,
                                         mfd_spacing,
                                         10.0)
-        src_nodes = read_nodes(nrml_file, lambda elem: "Source" in elem.tag,
-                               nrml.nodefactory["sourceModel"])
+        src_nodes = nrml.read(nrml_file).sourceModel
         sources = []
         for no, src_node in enumerate(src_nodes, 1):
             if validate:
-                print "Validating Source %s" % src_node.attrib["id"]
-                _ = converter.convert_node(src_node)
+                print("Validating Source %s" % src_node.attrib["id"])
+                converter.convert_node(src_node)
             sources.append(src_node)
         return SourceModel(sources)
 
@@ -1068,7 +1063,7 @@ class SourceModelParser(object):
         #assert isinstance(source_model, SourceModel) and len(source_model)
         if name:
             source_model.name = name
-        output_source_model = LiteralNode("sourceModel", {"name": name},
+        output_source_model = Node("sourceModel", {"name": name},
                                           nodes=source_model.sources)
         print "Exporting Source Model to %s" % self.destination
         with open(self.destination, "w") as f:

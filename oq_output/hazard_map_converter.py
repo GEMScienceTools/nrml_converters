@@ -46,7 +46,7 @@ import re
 import os
 import argparse
 import numpy
-from openquake.commonlib.nrml import read_lazy
+from openquake.commonlib.nrml import read
 
 NRML = '{http://openquake.org/xmlns/nrml/0.5}'
 
@@ -73,7 +73,7 @@ def atkinson_kaka_2007_rsa2mmi(imt, values):
     Atkinson & Kaka (2007)
     """
     if imt not in AK2007.keys():
-        print "IMT %s not convertable to MMI" % imt
+        print("IMT %s not convertable to MMI" % imt)
         return values, None
     values = values * AK2007[imt]["cfact"]
     mmi = AK2007[imt]["C1"] + AK2007[imt]["C2"] * numpy.log10(values)
@@ -88,7 +88,7 @@ def parse_nrml_hazard_map(nrml_hazard_map):
     Reads the NRML file and returns the metadata as a dictionary and the value
     as a numpy array of [lon, lat, IML]
     """
-    node_set = read_lazy(nrml_hazard_map, "node")[0]
+    node_set = read(nrml_hazard_map, stop="node").hazardMap
     metadata = {
         "imt": node_set.attrib["IMT"],
         "investigation_time": float(node_set.attrib["investigationTime"])}
