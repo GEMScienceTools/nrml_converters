@@ -57,11 +57,11 @@ def read_hazard_curves(filename):
     Reads the hazard curves from the NRML file and sorts the results
     into a dictionary of hazard curves information
     """
-    node_set = read(filename, stop="poEs")[0]
+    node_set = read(filename)[0]
     hazard_curves = {
         "imt": node_set.attrib["IMT"],
-        "investigation_time": float(node_set.attrib["investigationTime"]),
-        "imls": numpy.array(node_set.nodes[0].text)}
+        "investigation_time": node_set["investigationTime"],
+        "imls": ~node_set.nodes[0]}
     for option, name in OPTIONAL_PATHS:
         if name in node_set.attrib:
             hazard_curves[option] = node_set.attrib[name]
@@ -72,13 +72,13 @@ def read_hazard_curves(filename):
     poes = []
     for hc_node in node_set.nodes[1:]:
         # Get location info
-        lon, lat = hc_node.nodes[0].nodes[0].text
-        locations.append([lon, lat])
+        locations.append(~hc_node.nodes[0].nodes[0])
         # Get PoEs
         poes.append(hc_node.nodes[1].text)
     hazard_curves["curves"] = numpy.column_stack([numpy.array(locations),
                                                   numpy.array(poes)])
     return hazard_curves
+
 
 def _set_header(hcm):
     """
