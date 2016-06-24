@@ -88,7 +88,7 @@ def parse_nrml_hazard_map(nrml_hazard_map):
     Reads the NRML file and returns the metadata as a dictionary and the value
     as a numpy array of [lon, lat, IML]
     """
-    node_set = read(nrml_hazard_map, stop="node").hazardMap
+    node_set = read(nrml_hazard_map).hazardMap
     metadata = {
         "imt": node_set.attrib["IMT"],
         "investigation_time": float(node_set.attrib["investigationTime"])}

@@ -62,7 +62,7 @@ def parse_nrml_uhs_curves(nrml_uhs_map):
     periods (as a numpy array) and the uhs values as an array of
     [lon, lat, uhs]
     """
-    node_set = read(nrml_uhs_map, stop="IMLs")[0]
+    node_set = read(nrml_uhs_map)[0]
     # Read metadata
 
     metadata = {
