@@ -50,7 +50,7 @@ import csv
 import argparse
 import numpy
 from collections import OrderedDict
-from openquake.commonlib.nrml import read_lazy
+from openquake.commonlib.nrml import read
 from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
 NRML='{http://openquake.org/xmlns/nrml/0.5}'
@@ -61,7 +61,7 @@ def parse_gmfs_file(file_name):
     Parses the NRML 0.4 GMF set file
     """
 
-    node_set = read_lazy(file_name, "node")[0]
+    node_set = read(file_name, stop="node")[0]
     gmf_set = []
     gmfs = []
     imt_list = []

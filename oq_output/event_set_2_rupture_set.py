@@ -50,7 +50,7 @@ import os
 import csv
 import argparse
 import numpy as np
-from openquake.commonlib.node import striptag, LiteralNode
+from openquake.commonlib.node import striptag, Node
 from openquake.commonlib import nrml
 from openquake.hazardlib.geo.mesh import RectangularMesh
 from openquake.hazardlib.geo import Point, Line, PlanarSurface
@@ -60,8 +60,8 @@ def parse_planar_surface(rupture):
     """
 
     """
-    mag = LiteralNode("magnitude", text=rupture["magnitude"])
-    rake = LiteralNode("rake", text=rupture["rake"])
+    mag = Node("magnitude", text=rupture["magnitude"])
+    rake = Node("rake", text=rupture["rake"])
     top_left = Point(float(rupture.planarSurface.topLeft["lon"]),
                      float(rupture.planarSurface.topLeft["lat"]),
                      float(rupture.planarSurface.topLeft["depth"]))
@@ -82,14 +82,14 @@ def parse_planar_surface(rupture):
         bottom_right,
         bottom_left)
     hypocentre = planar_surface.get_middle_point()
-    hypo = LiteralNode("hypocenter", {
+    hypo = Node("hypocenter", {
         "lon": str(hypocentre.longitude),
         "lat": str(hypocentre.latitude),
         "depth": str(hypocentre.depth)})
-    surface = LiteralNode("planarSurface",
+    surface = Node("planarSurface",
         {"strike": rupture["strike"], "dip": rupture["dip"]},
         nodes=rupture.planarSurface.nodes)
-    return LiteralNode("singlePlaneRupture", nodes=[mag, rake, hypo, surface])
+    return Node("singlePlaneRupture", nodes=[mag, rake, hypo, surface])
 
 def _row_to_linestring(row, loc):
     """
@@ -98,8 +98,8 @@ def _row_to_linestring(row, loc):
     ncol = row.shape[1]
     geom_str = ["%s %s %s" % (row[loc, i, 0], row[loc, i, 1], row[loc, i, 2])
                 for i in range(ncol)]
-    poslist_node = LiteralNode("gml:posList", text=geom_str)
-    return LiteralNode("gml:LineString", nodes=[poslist_node])
+    poslist_node = Node("gml:posList", text=geom_str)
+    return Node("gml:LineString", nodes=[poslist_node])
 
 def parse_mesh_surface(rupture):
     """
@@ -116,24 +116,24 @@ def parse_mesh_surface(rupture):
     for i in range(nrow):
         if i == 0:
             # Top edge
-            edges.append(LiteralNode("faultTopEdge",
+            edges.append(Node("faultTopEdge",
                 nodes=[_row_to_linestring(gridpoints, i)]))
         elif i == (nrow - 1):
-            edges.append(LiteralNode("faultBottomEdge",
+            edges.append(Node("faultBottomEdge",
                 nodes=[_row_to_linestring(gridpoints, i)]))
         else:
-            edges.append(LiteralNode("intermediateEdge",
+            edges.append(Node("intermediateEdge",
                 nodes=[_row_to_linestring(gridpoints, i)]))
     m_r, m_c = (nrow / 2), (ncol / 2)
-    hypo = LiteralNode("hypocenter", {
+    hypo = Node("hypocenter", {
         "lon": str(gridpoints[m_r, m_c, 0]),
         "lat": str(gridpoints[m_r, m_c, 1]),
         "depth": str(gridpoints[m_r, m_c, 2])})
 
-    geom = LiteralNode("complexFaultGeometry", nodes=edges)
-    mag = LiteralNode("magnitude", text=rupture["magnitude"])
-    rake = LiteralNode("rake", text=rupture["rake"])
-    return LiteralNode("complexFaultRupture", nodes=[mag, rake, hypo, geom])        
+    geom = Node("complexFaultGeometry", nodes=edges)
+    mag = Node("magnitude", text=rupture["magnitude"])
+    rake = Node("rake", text=rupture["rake"])
+    return Node("complexFaultRupture", nodes=[mag, rake, hypo, geom])        
 
 
 def event_set_to_rupture_xmls(input_ses, output_dir):

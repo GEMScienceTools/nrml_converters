@@ -45,7 +45,7 @@ Convert NRML uniform hazard spectra file to .csv file.
 import os
 import argparse
 import numpy
-from openquake.commonlib.nrml import read_lazy
+from openquake.commonlib.nrml import read
 import matplotlib.pyplot as plt
 
 NRML = '{http://openquake.org/xmlns/nrml/0.5}'
@@ -62,7 +62,7 @@ def parse_nrml_uhs_curves(nrml_uhs_map):
     periods (as a numpy array) and the uhs values as an array of
     [lon, lat, uhs]
     """
-    node_set = read_lazy(nrml_uhs_map, "IMLs")[0]
+    node_set = read(nrml_uhs_map)[0]
     # Read metadata
 
     metadata = {

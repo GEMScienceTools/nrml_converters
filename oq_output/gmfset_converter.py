@@ -51,7 +51,7 @@ import csv
 import argparse
 import numpy
 from collections import OrderedDict
-from openquake.commonlib.nrml import read_lazy, read
+from openquake.commonlib.nrml import read
 from hazard_map_converter import atkinson_kaka_2007_rsa2mmi, AK2007
 
 NRML = '{http://openquake.org/xmlns/nrml/0.5}'
@@ -89,24 +89,6 @@ class GmfCollection(object):
         self.gmfss = gmfss
 
 
-#def parse_gmfc_file(file_name):
-#    """
-#    Parse NRML 0.4 GMF collection file.
-#    """
-#    node_set = read_lazy(file_name, "node")[0]
-#    gmfss = []
-#    for element in node_set:
-#        if "gmfSet" in element.tag:
-#            gmfss.append(parse_gmf_set(element))
-#        elif "gmfCollection" in element.tag:
-#            gmfc = GmfCollection(element.attrib["sourceModelTreePath"],
-#                                 element.attrib["gsimTreePath"],
-#                                 None)
-#        else:
-#            pass
-#    gmfc.gmfss = gmfss
-#    return gmfc
-
 def parse_gmfc_file(file_name):
     """
     Parse NRML 0.4 GMF collection file.
@@ -119,7 +101,6 @@ def parse_gmfc_file(file_name):
     for gmf_set in node_set:
         gmfss.append(parse_gmf_set(gmf_set))
     gmfc.gmfss = gmfss
-    #for gmf_col_set in node_set:
     return gmfc
 
 
