@@ -57,7 +57,7 @@ def read_hazard_curves(filename):
     Reads the hazard curves from the NRML file and sorts the results
     into a dictionary of hazard curves information
     """
-    node_set = read(filename, "poEs")[0]
+    node_set = read(filename, stop="poEs")[0]
     hazard_curves = {
         "imt": node_set.attrib["IMT"],
         "investigation_time": float(node_set.attrib["investigationTime"]),

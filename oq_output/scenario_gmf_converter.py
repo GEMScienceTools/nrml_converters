@@ -61,7 +61,7 @@ def parse_gmfs_file(file_name):
     Parses the NRML 0.4 GMF set file
     """
 
-    node_set = read(file_name, "node")[0]
+    node_set = read(file_name, stop="node")[0]
     gmf_set = []
     gmfs = []
     imt_list = []
