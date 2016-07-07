@@ -325,7 +325,7 @@ def save_sess_to_txt(sesc, output_dir):
                   'trt\tstrike\tdip\trake\tboundary')
         f = open(fname, 'w')
         f.write(header + '\n')
-        numpy.savetxt(f, sesc.data[idx, 2:], fmt='t%2.1f\t%5.2f\t%5.2f\t'
+        numpy.savetxt(f, sesc.data[idx, 1:], fmt='%s\t%2.1f\t%5.2f\t%5.2f\t'
                       '%5.2f\t%s\t%5.2f\t%5.2f\t%5.2f\t%s')
         f.close()
 
