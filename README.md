@@ -40,7 +40,7 @@ If working in an environment where OpenQuake is already installed then the first
 five python dependencies are already available. The only missing one is ``pyshp``
 which can be installed using the following command:
 
->> sudo pip install pyshp
+$ sudo pip install pyshp==1.2.3
 
 In other environments it is recommended to install numpy and shapely
 using the standard packages (dependent on the OS).
