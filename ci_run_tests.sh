@@ -76,6 +76,7 @@ if command -v lxc-copy &> /dev/null; then
 else
     # Old lxc (< 2.0.0) with lxc-start-ephimeral
     GEM_EPHEM_EXE="${GEM_EPHEM_CMD} -o ${GEM_EPHEM_NAME} -d"
+fi
 
 NL="
 "
