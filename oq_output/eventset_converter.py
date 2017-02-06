@@ -50,7 +50,7 @@ import os
 import csv
 import argparse
 import numpy
-from openquake.commonlib.node import striptag
+from openquake.baselib.node import striptag
 from openquake.commonlib.nrml import read
 from openquake.hazardlib.geo.mesh import RectangularMesh
 
